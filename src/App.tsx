@@ -93,6 +93,16 @@ const MODEL_OPTIONS = [
     label: 'Whisper Base',
     description: 'Más lento, pero normalmente más preciso',
   },
+  {
+    id: 'onnx-community/whisper-small',
+    label: 'Whisper Small',
+    description: 'Más calidad potencial, pero bastante más pesado en navegador',
+  },
+  {
+    id: 'onnx-community/whisper-medium',
+    label: 'Whisper Medium',
+    description: 'Aún más pesado; puede consumir mucha memoria y tardar bastante',
+  },
 ] as const
 
 const DEFAULT_MODEL_ID = 'onnx-community/whisper-base'
@@ -215,6 +225,9 @@ const UI_STRINGS = {
     languageVietnamese: 'Vietnamita',
     modelTinyDescription: 'Carga ligera y respuesta más rápida',
     modelBaseDescription: 'Más lento, pero normalmente más preciso',
+    modelSmallDescription: 'Más calidad potencial, pero bastante más pesado en navegador',
+    modelMediumDescription: 'Aún más pesado; puede consumir mucha memoria y tardar bastante',
+    modelOrderHint: 'Orden real de menor a mayor: Tiny < Base < Small < Medium. Small y Medium son opciones experimentales y pueden ir lentas en navegador.',
     savedSessionNoFile: 'Transcripción sin archivo asociado',
     copied: 'Texto copiado al portapapeles.',
     copyFailed: 'No se pudo copiar el texto al portapapeles.',
@@ -308,6 +321,9 @@ const UI_STRINGS = {
     languageVietnamese: 'Vietnamese',
     modelTinyDescription: 'Lightweight load and faster response',
     modelBaseDescription: 'Slower, but usually more accurate',
+    modelSmallDescription: 'Higher potential quality, but much heavier in the browser',
+    modelMediumDescription: 'Even heavier; it may use a lot of memory and take much longer',
+    modelOrderHint: 'Actual order from smaller to larger: Tiny < Base < Small < Medium. Small and Medium are experimental options and may run slowly in the browser.',
     savedSessionNoFile: 'Transcription without associated file',
     copied: 'Text copied to clipboard.',
     copyFailed: 'Could not copy text to clipboard.',
@@ -401,6 +417,9 @@ const UI_STRINGS = {
     languageVietnamese: 'Vietnamita',
     modelTinyDescription: 'Càrrega lleugera i resposta més ràpida',
     modelBaseDescription: 'Més lent, però normalment més precís',
+    modelSmallDescription: 'Més qualitat potencial, però força més pesat al navegador',
+    modelMediumDescription: 'Encara més pesat; pot consumir molta memòria i trigar força',
+    modelOrderHint: 'Ordre real de més petit a més gran: Tiny < Base < Small < Medium. Small i Medium són opcions experimentals i poden anar lentes al navegador.',
     savedSessionNoFile: 'Transcripció sense fitxer associat',
     copied: 'Text copiat al porta-retalls.',
     copyFailed: 'No s\'ha pogut copiar el text al porta-retalls.',
@@ -494,6 +513,9 @@ const UI_STRINGS = {
     languageVietnamese: 'Vietnamita',
     modelTinyDescription: 'Carga lixeira e resposta máis rápida',
     modelBaseDescription: 'Máis lento, pero normalmente máis preciso',
+    modelSmallDescription: 'Máis calidade potencial, pero bastante máis pesado no navegador',
+    modelMediumDescription: 'Aínda máis pesado; pode consumir moita memoria e tardar bastante',
+    modelOrderHint: 'Orde real de menor a maior: Tiny < Base < Small < Medium. Small e Medium son opcións experimentais e poden ir lentas no navegador.',
     savedSessionNoFile: 'Transcrición sen ficheiro asociado',
     copied: 'Texto copiado ao portapapeis.',
     copyFailed: 'Non se puido copiar o texto ao portapapeis.',
@@ -587,6 +609,9 @@ const UI_STRINGS = {
     languageVietnamese: 'Vietnamera',
     modelTinyDescription: 'Karga arina eta erantzun azkarragoa',
     modelBaseDescription: 'Motelagoa, baina normalean zehatzagoa',
+    modelSmallDescription: 'Kalitate potentzial handiagoa, baina askoz astunagoa nabigatzailean',
+    modelMediumDescription: 'Are astunagoa; memoria asko erabil dezake eta denbora gehiago behar du',
+    modelOrderHint: 'Benetako ordena txikienetik handienera: Tiny < Base < Small < Medium. Small eta Medium aukera esperimentalak dira eta motel ibil daitezke nabigatzailean.',
     savedSessionNoFile: 'Lotutako fitxategirik gabeko transkripzioa',
     copied: 'Testua arbelean kopiatu da.',
     copyFailed: 'Ezin izan da testua arbelean kopiatu.',
@@ -1336,6 +1361,7 @@ function App() {
                   ))}
                 </select>
                 <p className="hint">{getModelDescription(modelId, texts)}</p>
+                <p className="small-note">{texts.modelOrderHint}</p>
               </label>
               <label>
                 <span>{texts.audioSourceLanguage}</span>
@@ -2029,7 +2055,17 @@ function formatTemplate(template: string, values: Record<string, string>): strin
 }
 
 function getModelDescription(modelId: string, texts: typeof UI_STRINGS[SupportedUiLanguage]): string {
-  return modelId === 'onnx-community/whisper-tiny' ? texts.modelTinyDescription : texts.modelBaseDescription
+  switch (modelId) {
+    case 'onnx-community/whisper-tiny':
+      return texts.modelTinyDescription
+    case 'onnx-community/whisper-small':
+      return texts.modelSmallDescription
+    case 'onnx-community/whisper-medium':
+      return texts.modelMediumDescription
+    case 'onnx-community/whisper-base':
+    default:
+      return texts.modelBaseDescription
+  }
 }
 
 function translateStatus(
