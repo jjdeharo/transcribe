@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
+import { useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react'
 import './App.css'
 import {
   TranscriptionError,
@@ -41,7 +41,7 @@ type WorkerRequest = {
 
 type WorkerMessage =
   | { type: 'status'; payload: string }
-  | { type: 'download'; payload: { file?: string; progress?: number; status?: string } }
+  | { type: 'download'; payload: { file?: string; progress?: number; status?: string; loaded?: number; total?: number } }
   | { type: 'chunkProgress'; payload: { completed: number; total: number } }
   | { type: 'result'; payload: WorkerSuccess }
   | { type: 'error'; payload: string }
@@ -98,16 +98,12 @@ const MODEL_OPTIONS = [
     label: 'Whisper Small',
     description: 'Más calidad potencial, pero bastante más pesado en navegador',
   },
-  {
-    id: 'onnx-community/whisper-medium',
-    label: 'Whisper Medium',
-    description: 'Aún más pesado; puede consumir mucha memoria y tardar bastante',
-  },
 ] as const
 
 const DEFAULT_MODEL_ID = 'onnx-community/whisper-base'
 const DEFAULT_PERSISTED_SESSIONS_LIMIT = 10
 const MAX_PERSISTED_SESSIONS_LIMIT = 30
+const APP_VERSION = '0.1.0'
 
 const LANGUAGE_OPTIONS = [
   { value: 'es', label: 'Español' },
@@ -644,7 +640,7 @@ function App() {
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string>('')
   const [copyMessage, setCopyMessage] = useState<string>('')
-  const [progressValue, setProgressValue] = useState<number>(0)
+  const [workflowProgress, setWorkflowProgress] = useState<number>(0)
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0)
   const [lastRunSeconds, setLastRunSeconds] = useState<number | null>(null)
   const [showSegments, setShowSegments] = useState(true)
@@ -670,7 +666,10 @@ function App() {
   const undoStackRef = useRef<EditableSnapshot[]>([])
   const redoStackRef = useRef<EditableSnapshot[]>([])
 
-  const currentFileInfo = selectedFile ? toPersistedFileInfo(selectedFile) : restoredFileInfoRef.current
+  const currentFileInfo = useMemo(
+    () => (selectedFile ? toPersistedFileInfo(selectedFile) : restoredFileInfoRef.current),
+    [selectedFile],
+  )
   const savedSessionsSize = useMemo(() => estimatePersistedSessionsSize(savedSessions, savedSessionsLimit), [savedSessions, savedSessionsLimit])
   const uiLanguage = useMemo(() => resolveUiLanguage(uiLanguageSetting), [uiLanguageSetting])
   const texts = UI_STRINGS[uiLanguage]
@@ -678,7 +677,7 @@ function App() {
   useEffect(() => {
     workerRef.current = createTranscriptionWorker(
       setStatus,
-      setProgressValue,
+      setWorkflowProgress,
       setDownloadProgress,
       pendingResolveRef,
       pendingRejectRef,
@@ -690,6 +689,8 @@ function App() {
     }
   }, [])
 
+  // `restoreSavedSession` is intentionally invoked only during initial hydration.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const persistedLimit = loadPersistedSessionsLimit()
     const persistedUiLanguage = loadUiLanguageSetting()
@@ -913,7 +914,7 @@ function App() {
     setCanRedo(redoStackRef.current.length > 0)
   }
 
-  const restoreSavedSession = (session: PersistedSession, options?: { statusMessage?: string }) => {
+  function restoreSavedSession(session: PersistedSession, options?: { statusMessage?: string }) {
     restoredFileInfoRef.current = session.fileInfo
     setModelId(isKnownModel(session.modelId) ? session.modelId : DEFAULT_MODEL_ID)
     setSelectedLanguage(isKnownLanguage(session.selectedLanguage) ? session.selectedLanguage : '')
@@ -922,7 +923,7 @@ function App() {
     setDetectedLanguage(session.detectedLanguage)
     setShowSegments(true)
     setLastRunSeconds(session.lastRunSeconds)
-    setProgressValue(session.segments.length > 0 || session.plainText.trim() ? 100 : 0)
+    setWorkflowProgress(session.segments.length > 0 || session.plainText.trim() ? 100 : 0)
     setElapsedSeconds(0)
     setDownloadProgress(null)
     setErrorMessage('')
@@ -1023,7 +1024,7 @@ function App() {
     setPlainText('')
     setDetectedLanguage(null)
     setShowSegments(true)
-    setProgressValue(0)
+    setWorkflowProgress(0)
     setLastRunSeconds(null)
     setStatus(file ? 'Archivo cargado. Selecciona el idioma del audio de origen para transcribir.' : 'Selecciona un archivo.')
     undoStackRef.current = []
@@ -1050,7 +1051,7 @@ function App() {
       })
       setErrorMessage('')
       setCopyMessage('')
-      setProgressValue(100)
+      setWorkflowProgress(100)
       setStatus(`Archivo de subtítulos importado. ${importedSegments.length} fragmentos disponibles.`)
     } catch (error) {
       const message = error instanceof Error ? error.message : texts.importFileFailed
@@ -1101,7 +1102,7 @@ function App() {
     setErrorMessage('')
     setCopyMessage('')
     setDownloadProgress(null)
-    setProgressValue(5)
+    setWorkflowProgress(5)
     setElapsedSeconds(0)
     startedAtRef.current = Date.now()
 
@@ -1110,7 +1111,7 @@ function App() {
       const duration = await getMediaDuration(selectedFile)
 
       setStatus('Transcribiendo en el navegador…')
-      setProgressValue(70)
+      setWorkflowProgress(70)
       const result = await transcribeWithWorker(audioData, duration)
       commitEditableSnapshot({
         detectedLanguage: result.detectedLanguage,
@@ -1119,7 +1120,7 @@ function App() {
         showSegments: true,
       })
       setStatus(`Transcripción completada. ${result.segments.length} fragmentos detectados.`)
-      setProgressValue(100)
+      setWorkflowProgress(100)
     } catch (error) {
       const message =
         error instanceof TranscriptionError || error instanceof Error
@@ -1143,7 +1144,7 @@ function App() {
     workerRef.current?.terminate()
     workerRef.current = createTranscriptionWorker(
       setStatus,
-      setProgressValue,
+      setWorkflowProgress,
       setDownloadProgress,
       pendingResolveRef,
       pendingRejectRef,
@@ -1155,7 +1156,7 @@ function App() {
 
     setIsTranscribing(false)
     setDownloadProgress(null)
-    setProgressValue(0)
+    setWorkflowProgress(0)
     setStatus('Transcripción cancelada.')
     setErrorMessage('')
     setCopyMessage('')
@@ -1384,22 +1385,30 @@ function App() {
           <article className="panel status-panel">
             <div className="panel-heading">
               <h2>{texts.status}</h2>
-              <span className="pill">{progressLabel(progressValue, isTranscribing, texts, uiLanguage)}</span>
+              <span className="pill">{progressLabel(workflowProgress, downloadProgress, isTranscribing, texts, uiLanguage)}</span>
             </div>
             <p>{translateStatus(status, texts, uiLanguage)}</p>
             <div className="progress-block" aria-live="polite">
               <div className="progress-track">
-                <div className="progress-fill" style={{ width: `${Math.max(progressValue, 2)}%` }} />
+                <div className="progress-fill" style={{ width: `${Math.max(workflowProgress, 2)}%` }} />
               </div>
               <div className="progress-meta">
-                <span>{progressValue}%</span>
-                <span>{progressLabel(progressValue, isTranscribing, texts, uiLanguage)}</span>
+                <span>{workflowProgress}%</span>
               </div>
             </div>
-            {downloadProgress !== null ? <p className="small-note">{texts.modelDownload}: {downloadProgress}%</p> : null}
+            {downloadProgress !== null ? (
+              <div className="progress-block progress-block-secondary" aria-live="polite">
+                <span className="progress-title">{texts.modelDownload}</span>
+              <div className="progress-track">
+                  <div className="progress-fill progress-fill-secondary" style={{ width: `${Math.max(downloadProgress, 2)}%` }} />
+                </div>
+                <div className="progress-meta">
+                  <span>{downloadProgress}%</span>
+                </div>
+              </div>
+            ) : null}
             <div className="timing-meta">
               <span>{texts.currentTime}: {formatElapsed(elapsedSeconds)}</span>
-              <span>{texts.lastRun}: {lastRunSeconds !== null ? formatElapsed(lastRunSeconds) : texts.noData}</span>
             </div>
             {errorMessage ? <p className="error-note">{errorMessage}</p> : null}
           </article>
@@ -1643,6 +1652,7 @@ function App() {
           <a href="https://bilateria.org" rel="noreferrer" target="_blank">
             Juan José de Haro
           </a>
+          {' '}· v{APP_VERSION}
           {' '}· Código bajo licencia{' '}
           <a href="https://www.gnu.org/licenses/agpl-3.0.html" rel="noreferrer" target="_blank">
             AGPLv3
@@ -1687,8 +1697,8 @@ export default App
 
 function createTranscriptionWorker(
   setStatus: (value: string) => void,
-  setProgressValue: (value: number) => void,
-  setDownloadProgress: (value: number | null) => void,
+  setWorkflowProgress: Dispatch<SetStateAction<number>>,
+  setDownloadProgress: Dispatch<SetStateAction<number | null>>,
   pendingResolveRef: MutableRefObject<((value: WorkerSuccess) => void) | null>,
   pendingRejectRef: MutableRefObject<((reason?: unknown) => void) | null>,
 ): Worker {
@@ -1701,15 +1711,16 @@ function createTranscriptionWorker(
 
     if (message.type === 'status') {
       setStatus(message.payload)
-      setProgressValue(mapStatusToProgress(message.payload))
+      setWorkflowProgress((current) => advanceProgress(current, mapStatusToProgress(message.payload)))
       return
     }
 
     if (message.type === 'download') {
       setStatus('Descargando el modelo de transcripción…')
-      const normalizedDownloadProgress = normalizeDownloadProgress(message.payload.progress)
-      setDownloadProgress(normalizedDownloadProgress)
-      setProgressValue(normalizedDownloadProgress !== null ? Math.max(10, Math.round(normalizedDownloadProgress * 0.45)) : 14)
+      setDownloadProgress((current) => {
+        const next = normalizeDownloadProgress(message.payload, current)
+        return next !== null && next >= 100 ? null : next
+      })
       return
     }
 
@@ -1717,13 +1728,13 @@ function createTranscriptionWorker(
       const { completed, total } = message.payload
       const ratio = total > 0 ? completed / total : 0
       setStatus(`Transcribiendo bloque ${completed} de ${total}…`)
-      setProgressValue(Math.max(72, Math.min(98, Math.round(72 + ratio * 26))))
+      setWorkflowProgress((current) => advanceProgress(current, Math.max(72, Math.min(98, Math.round(72 + ratio * 26)))))
       return
     }
 
     if (message.type === 'result') {
       setDownloadProgress(null)
-      setProgressValue(100)
+      setWorkflowProgress(100)
       pendingResolveRef.current?.(message.payload)
       pendingResolveRef.current = null
       pendingRejectRef.current = null
@@ -1741,16 +1752,28 @@ function createTranscriptionWorker(
   return worker
 }
 
-function normalizeDownloadProgress(progress: number | undefined): number | null {
-  if (typeof progress !== 'number' || !Number.isFinite(progress)) {
-    return null
+function advanceProgress(current: number, next: number): number {
+  return Math.max(current, Math.max(0, Math.min(100, Math.round(next))))
+}
+
+function normalizeDownloadProgress(
+  payload: { progress?: number; status?: string; loaded?: number; total?: number },
+  current: number | null,
+): number | null {
+  if (payload.status === 'progress_total' && typeof payload.loaded === 'number' && typeof payload.total === 'number' && payload.total > 0) {
+    const next = Math.round((payload.loaded / payload.total) * 100)
+    return advanceProgress(current ?? 0, next)
   }
 
-  if (progress <= 1) {
-    return Math.max(0, Math.min(100, Math.round(progress * 100)))
+  if (typeof payload.progress !== 'number' || !Number.isFinite(payload.progress)) {
+    return current
   }
 
-  return Math.max(0, Math.min(100, Math.round(progress)))
+  if (payload.progress <= 1) {
+    return advanceProgress(current ?? 0, payload.progress * 100)
+  }
+
+  return advanceProgress(current ?? 0, payload.progress)
 }
 
 function formatElapsed(totalSeconds: number): string {
@@ -1787,6 +1810,7 @@ function mapStatusToProgress(status: string): number {
 
 function progressLabel(
   progress: number,
+  downloadProgress: number | null,
   isTranscribing: boolean,
   texts: typeof UI_STRINGS[SupportedUiLanguage],
   language: SupportedUiLanguage,
@@ -1794,7 +1818,9 @@ function progressLabel(
   if (!isTranscribing && progress === 0) return translateStatus('Listo para empezar', texts, language)
   if (progress < 15) return translateStatus('Preparando archivo', texts, language)
   if (progress < 50) return translateStatus('Extrayendo y decodificando audio', texts, language)
-  if (progress < 75) return translateStatus('Cargando modelo', texts, language)
+  if (progress < 75) {
+    return translateStatus(downloadProgress !== null ? 'Cargando modelo' : 'Preparando transcripción', texts, language)
+  }
   if (progress < 100) return translateStatus('Transcribiendo', texts, language)
   return translateStatus('Terminado', texts, language)
 }
@@ -2054,8 +2080,6 @@ function getModelDescription(modelId: string, texts: typeof UI_STRINGS[Supported
       return texts.modelTinyDescription
     case 'onnx-community/whisper-small':
       return texts.modelSmallDescription
-    case 'onnx-community/whisper-medium':
-      return texts.modelMediumDescription
     case 'onnx-community/whisper-base':
     default:
       return texts.modelBaseDescription
@@ -2166,6 +2190,13 @@ function translateStatus(
       ca: 'Carregant model',
       gl: 'Cargando modelo',
       eu: 'Eredua kargatzen',
+    }[language],
+    'Preparando transcripción': {
+      es: 'Preparando transcripción',
+      en: 'Preparing transcription',
+      ca: 'Preparant la transcripció',
+      gl: 'Preparando a transcrición',
+      eu: 'Transkripzioa prestatzen',
     }[language],
     Transcribiendo: texts.transcribing,
     Terminado: {

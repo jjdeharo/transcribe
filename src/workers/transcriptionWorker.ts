@@ -124,7 +124,10 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       },
     })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'La transcripción falló en el worker.'
+    const rawMessage = error instanceof Error ? error.message : 'La transcripción falló en el worker.'
+    const message = rawMessage.includes('Unauthorized access to file')
+      ? 'El modelo seleccionado no está disponible públicamente para esta aplicación en el navegador.'
+      : rawMessage
     postMessage({ type: 'error', payload: message })
   }
 }
