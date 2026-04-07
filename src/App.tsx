@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react'
 import './App.css'
 import {
   TranscriptionError,
@@ -103,7 +103,7 @@ const MODEL_OPTIONS = [
 const DEFAULT_MODEL_ID = 'onnx-community/whisper-base'
 const DEFAULT_PERSISTED_SESSIONS_LIMIT = 10
 const MAX_PERSISTED_SESSIONS_LIMIT = 30
-const APP_VERSION = '0.1.0'
+const APP_VERSION = '0.1.1'
 
 const LANGUAGE_OPTIONS = [
   { value: 'es', label: 'Español' },
@@ -168,6 +168,8 @@ const UI_STRINGS = {
     currentTime: 'Tiempo actual',
     lastRun: 'Última ejecución',
     noData: 'sin datos',
+    footerLicensedUnder: 'Código bajo licencia',
+    feedbackIssues: 'Sugerencias y errores',
     localStorageTitle: 'Guardado local',
     show: 'Mostrar',
     hide: 'Ocultar',
@@ -263,6 +265,8 @@ const UI_STRINGS = {
     currentTime: 'Current time',
     lastRun: 'Last run',
     noData: 'no data',
+    footerLicensedUnder: 'Code licensed under',
+    feedbackIssues: 'Suggestions and bugs',
     localStorageTitle: 'Local storage',
     show: 'Show',
     hide: 'Hide',
@@ -358,6 +362,8 @@ const UI_STRINGS = {
     currentTime: 'Temps actual',
     lastRun: 'Darrera execució',
     noData: 'sense dades',
+    footerLicensedUnder: 'Codi sota llicència',
+    feedbackIssues: 'Suggeriments i errors',
     localStorageTitle: 'Emmagatzematge local',
     show: 'Mostra',
     hide: 'Amaga',
@@ -453,6 +459,8 @@ const UI_STRINGS = {
     currentTime: 'Tempo actual',
     lastRun: 'Última execución',
     noData: 'sen datos',
+    footerLicensedUnder: 'Código baixo licenza',
+    feedbackIssues: 'Suxestións e erros',
     localStorageTitle: 'Garda local',
     show: 'Amosar',
     hide: 'Agochar',
@@ -548,6 +556,8 @@ const UI_STRINGS = {
     currentTime: 'Uneko denbora',
     lastRun: 'Azken exekuzioa',
     noData: 'daturik ez',
+    footerLicensedUnder: 'Kodea lizentzia honekin',
+    feedbackIssues: 'Iradokizunak eta erroreak',
     localStorageTitle: 'Tokiko gordailua',
     show: 'Erakutsi',
     hide: 'Ezkutatu',
@@ -674,6 +684,37 @@ function App() {
   const uiLanguage = useMemo(() => resolveUiLanguage(uiLanguageSetting), [uiLanguageSetting])
   const texts = UI_STRINGS[uiLanguage]
 
+  const updateHistoryAvailability = useCallback(() => {
+    setCanUndo(undoStackRef.current.length > 0)
+    setCanRedo(redoStackRef.current.length > 0)
+  }, [])
+
+  const restoreSavedSession = useCallback((session: PersistedSession, options?: { statusMessage?: string }) => {
+    restoredFileInfoRef.current = session.fileInfo
+    setModelId(isKnownModel(session.modelId) ? session.modelId : DEFAULT_MODEL_ID)
+    setSelectedLanguage(isKnownLanguage(session.selectedLanguage) ? session.selectedLanguage : '')
+    setSegments(session.segments.map((segment) => ({ ...segment })))
+    setPlainText(session.plainText)
+    setDetectedLanguage(session.detectedLanguage)
+    setShowSegments(true)
+    setLastRunSeconds(session.lastRunSeconds)
+    setWorkflowProgress(session.segments.length > 0 || session.plainText.trim() ? 100 : 0)
+    setElapsedSeconds(0)
+    setDownloadProgress(null)
+    setErrorMessage('')
+    setCopyMessage('')
+    setActiveSegmentId(null)
+    setStatus(
+      options?.statusMessage ??
+        (session.fileInfo
+          ? 'Sesión restaurada. Vuelve a cargar el archivo si quieres previsualizar o sincronizar con el vídeo.'
+          : 'Transcripción restaurada desde el guardado local.'),
+    )
+    undoStackRef.current = []
+    redoStackRef.current = []
+    updateHistoryAvailability()
+  }, [updateHistoryAvailability])
+
   useEffect(() => {
     workerRef.current = createTranscriptionWorker(
       setStatus,
@@ -689,8 +730,6 @@ function App() {
     }
   }, [])
 
-  // `restoreSavedSession` is intentionally invoked only during initial hydration.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const persistedLimit = loadPersistedSessionsLimit()
     const persistedUiLanguage = loadUiLanguageSetting()
@@ -705,7 +744,7 @@ function App() {
     }
 
     hasHydratedSessionRef.current = true
-  }, [])
+  }, [restoreSavedSession])
 
   useEffect(() => {
     if (!hasHydratedSessionRef.current) {
@@ -849,7 +888,7 @@ function App() {
       return
     }
 
-    if (!currentFileInfo && segments.length === 0 && plainText.trim().length === 0) {
+    if (segments.length === 0 && plainText.trim().length === 0) {
       return
     }
 
@@ -909,32 +948,35 @@ function App() {
 
   const canExport = segments.length > 0 || plainText.trim().length > 0
 
-  const updateHistoryAvailability = () => {
-    setCanUndo(undoStackRef.current.length > 0)
-    setCanRedo(redoStackRef.current.length > 0)
-  }
+  const resetCurrentSessionState = (options?: { clearLoadedFile?: boolean }) => {
+    if (options?.clearLoadedFile) {
+      if (mediaUrl) {
+        URL.revokeObjectURL(mediaUrl)
+      }
+      if (subtitleTrackUrl) {
+        URL.revokeObjectURL(subtitleTrackUrl)
+        setSubtitleTrackUrl('')
+      }
 
-  function restoreSavedSession(session: PersistedSession, options?: { statusMessage?: string }) {
-    restoredFileInfoRef.current = session.fileInfo
-    setModelId(isKnownModel(session.modelId) ? session.modelId : DEFAULT_MODEL_ID)
-    setSelectedLanguage(isKnownLanguage(session.selectedLanguage) ? session.selectedLanguage : '')
-    setSegments(session.segments.map((segment) => ({ ...segment })))
-    setPlainText(session.plainText)
-    setDetectedLanguage(session.detectedLanguage)
+      setSelectedFile(null)
+      setMediaUrl('')
+      setSubtitleTrackVersion(0)
+    }
+
+    restoredFileInfoRef.current = null
+    setSelectedLanguage('')
+    setSegments([])
+    setPlainText('')
+    setDetectedLanguage(null)
     setShowSegments(true)
-    setLastRunSeconds(session.lastRunSeconds)
-    setWorkflowProgress(session.segments.length > 0 || session.plainText.trim() ? 100 : 0)
+    setWorkflowProgress(0)
     setElapsedSeconds(0)
+    setLastRunSeconds(null)
     setDownloadProgress(null)
     setErrorMessage('')
     setCopyMessage('')
     setActiveSegmentId(null)
-    setStatus(
-      options?.statusMessage ??
-        (session.fileInfo
-          ? 'Sesión restaurada. Vuelve a cargar el archivo si quieres previsualizar o sincronizar con el vídeo.'
-          : 'Transcripción restaurada desde el guardado local.'),
-    )
+    setStatus('Selecciona un archivo.')
     undoStackRef.current = []
     redoStackRef.current = []
     updateHistoryAvailability()
@@ -1184,13 +1226,19 @@ function App() {
   }
 
   const handleSavedSessionDelete = (id: string) => {
+    const currentSessionId = currentFileInfo ? createSessionId(currentFileInfo) : null
     const nextSessions = removePersistedSession(id)
     setSavedSessions(nextSessions)
+
+    if (currentSessionId === id) {
+      resetCurrentSessionState()
+    }
   }
 
   const handleSavedSessionsClear = () => {
     clearPersistedSessions()
     setSavedSessions([])
+    resetCurrentSessionState({ clearLoadedFile: true })
   }
 
   const handleSavedSessionsLimitChange = (value: string) => {
@@ -1653,9 +1701,13 @@ function App() {
             Juan José de Haro
           </a>
           {' '}· v{APP_VERSION}
-          {' '}· Código bajo licencia{' '}
+          {' '}· {texts.footerLicensedUnder}{' '}
           <a href="https://www.gnu.org/licenses/agpl-3.0.html" rel="noreferrer" target="_blank">
             AGPLv3
+          </a>
+          {' '}·{' '}
+          <a href="https://github.com/jjdeharo/transcribe/issues" rel="noreferrer" target="_blank">
+            {texts.feedbackIssues}
           </a>
         </p>
       </footer>
