@@ -61,7 +61,6 @@ type PersistedSession = {
   modelId: string
   plainText: string
   savedAt: number
-  selectedLanguage: string
   segments: Segment[]
   showSegments: boolean
   version: 2
@@ -86,53 +85,24 @@ const MODEL_OPTIONS = [
   {
     id: 'onnx-community/whisper-tiny',
     label: 'Whisper Tiny',
-    description: 'Carga ligera y respuesta más rápida',
+    description: 'Más rápido y ligero para pruebas, notas cortas y equipos modestos',
   },
   {
     id: 'onnx-community/whisper-base',
     label: 'Whisper Base',
-    description: 'Más lento, pero normalmente más preciso',
+    description: 'Equilibrio entre velocidad y calidad para la mayoría de audios',
   },
   {
     id: 'onnx-community/whisper-small',
     label: 'Whisper Small',
-    description: 'Más calidad potencial, pero bastante más pesado en navegador',
+    description: 'Mejor para audios algo más difíciles, varios hablantes o idiomas menos claros',
   },
 ] as const
 
 const DEFAULT_MODEL_ID = 'onnx-community/whisper-base'
 const DEFAULT_PERSISTED_SESSIONS_LIMIT = 10
 const MAX_PERSISTED_SESSIONS_LIMIT = 30
-const APP_VERSION = '0.1.1'
-
-const LANGUAGE_OPTIONS = [
-  { value: 'es', label: 'Español' },
-  { value: 'ca', label: 'Català' },
-  { value: 'gl', label: 'Galego' },
-  { value: 'eu', label: 'Euskara' },
-  { value: 'en', label: 'English' },
-  { value: 'de', label: 'Deutsch' },
-  { value: 'fr', label: 'Français' },
-  { value: 'pt', label: 'Português' },
-  { value: 'it', label: 'Italiano' },
-  { value: 'nl', label: 'Nederlands' },
-  { value: 'ro', label: 'Română' },
-  { value: 'pl', label: 'Polski' },
-  { value: 'cs', label: 'Čeština' },
-  { value: 'el', label: 'Ελληνικά' },
-  { value: 'tr', label: 'Türkçe' },
-  { value: 'ru', label: 'Русский' },
-  { value: 'uk', label: 'Українська' },
-  { value: 'ar', label: 'العربية' },
-  { value: 'he', label: 'עברית' },
-  { value: 'hi', label: 'हिन्दी' },
-  { value: 'ur', label: 'اردو' },
-  { value: 'zh', label: '中文' },
-  { value: 'ja', label: '日本語' },
-  { value: 'ko', label: '한국어' },
-  { value: 'id', label: 'Bahasa Indonesia' },
-  { value: 'vi', label: 'Tiếng Việt' },
-] as const
+const APP_VERSION = import.meta.env.VITE_APP_VERSION
 
 const SESSION_STORAGE_KEY = 'media2text-session'
 const SESSION_LIMIT_STORAGE_KEY = 'media2text-session-limit'
@@ -151,7 +121,7 @@ const UI_STRINGS = {
   es: {
     appName: 'Transcribe',
     heroTitle: 'Transcribe audio y vídeo local',
-    heroSubtitle: 'Carga un archivo local, obtén el texto y descárgalo como texto plano o como subtítulos. No se envían datos a terceros: todo se realiza en el navegador.',
+    heroSubtitle: 'Carga un archivo local, obtén el texto, edítalo y descárgalo como texto plano o como subtítulos. No se envían datos a terceros: todo se realiza en el navegador.',
     selectMedia: 'Seleccionar audio o vídeo',
     importSubtitles: 'Importar SRT o VTT',
     localMediaHint: 'Admite audio y vídeo locales compatibles con tu navegador.',
@@ -221,10 +191,9 @@ const UI_STRINGS = {
     languageKorean: 'Coreano',
     languageIndonesian: 'Indonesio',
     languageVietnamese: 'Vietnamita',
-    modelTinyDescription: 'Carga ligera y respuesta más rápida',
-    modelBaseDescription: 'Buena opción para la mayoría de los propósitos',
-    modelSmallDescription: 'Más calidad potencial, pero más pesado en navegador',
-    modelMediumDescription: 'Aún más pesado; puede consumir mucha memoria y tardar bastante',
+    modelTinyDescription: 'Más rápido y ligero; ideal para pruebas, notas breves o equipos modestos',
+    modelBaseDescription: 'El mejor equilibrio entre velocidad y calidad para la mayoría de los usos',
+    modelSmallDescription: 'Suele rendir mejor con audios algo más difíciles, varios hablantes o idiomas menos claros',
     savedSessionNoFile: 'Transcripción sin archivo asociado',
     copied: 'Texto copiado al portapapeles.',
     copyFailed: 'No se pudo copiar el texto al portapapeles.',
@@ -248,7 +217,7 @@ const UI_STRINGS = {
   en: {
     appName: 'Transcribe',
     heroTitle: 'Transcribe local audio and video',
-    heroSubtitle: 'Load a local file, extract the text, and download it as plain text or subtitles. No data is sent to third parties: everything runs in the browser.',
+    heroSubtitle: 'Load a local file, extract the text, edit it, and download it as plain text or subtitles. No data is sent to third parties: everything runs in the browser.',
     selectMedia: 'Select audio or video',
     importSubtitles: 'Import SRT or VTT',
     localMediaHint: 'Supports local audio and video files compatible with your browser.',
@@ -318,10 +287,9 @@ const UI_STRINGS = {
     languageKorean: 'Korean',
     languageIndonesian: 'Indonesian',
     languageVietnamese: 'Vietnamese',
-    modelTinyDescription: 'Lightweight load and faster response',
-    modelBaseDescription: 'A good option for most purposes',
-    modelSmallDescription: 'Higher potential quality, but heavier in the browser',
-    modelMediumDescription: 'Even heavier; it may use a lot of memory and take much longer',
+    modelTinyDescription: 'Fastest and lightest; ideal for quick tests, short notes, or modest devices',
+    modelBaseDescription: 'Best balance between speed and quality for most use cases',
+    modelSmallDescription: 'Often better for trickier audio, multiple speakers, or less clear language',
     savedSessionNoFile: 'Transcription without associated file',
     copied: 'Text copied to clipboard.',
     copyFailed: 'Could not copy text to clipboard.',
@@ -345,7 +313,7 @@ const UI_STRINGS = {
   ca: {
     appName: 'Transcribe',
     heroTitle: 'Transcriu àudio i vídeo local',
-    heroSubtitle: 'Carrega un fitxer local, obtén el text i descarrega\'l com a text pla o subtítols. No s’envien dades a tercers: tot es fa al navegador.',
+    heroSubtitle: 'Carrega un fitxer local, obtén el text, edita\'l i descarrega\'l com a text pla o subtítols. No s’envien dades a tercers: tot es fa al navegador.',
     selectMedia: 'Selecciona àudio o vídeo',
     importSubtitles: 'Importa SRT o VTT',
     localMediaHint: 'Admet àudio i vídeo locals compatibles amb el navegador.',
@@ -415,10 +383,9 @@ const UI_STRINGS = {
     languageKorean: 'Coreà',
     languageIndonesian: 'Indonesi',
     languageVietnamese: 'Vietnamita',
-    modelTinyDescription: 'Càrrega lleugera i resposta més ràpida',
-    modelBaseDescription: 'Bona opció per a la majoria de propòsits',
-    modelSmallDescription: 'Més qualitat potencial, però més pesat al navegador',
-    modelMediumDescription: 'Encara més pesat; pot consumir molta memòria i trigar força',
+    modelTinyDescription: 'El més ràpid i lleuger; ideal per a proves, notes breus o equips modestos',
+    modelBaseDescription: 'El millor equilibri entre velocitat i qualitat per a la majoria de casos',
+    modelSmallDescription: 'Sovint va millor amb àudios més difícils, diversos parlants o idiomes menys clars',
     savedSessionNoFile: 'Transcripció sense fitxer associat',
     copied: 'Text copiat al porta-retalls.',
     copyFailed: 'No s\'ha pogut copiar el text al porta-retalls.',
@@ -442,7 +409,7 @@ const UI_STRINGS = {
   gl: {
     appName: 'Transcribe',
     heroTitle: 'Transcribe audio e vídeo local',
-    heroSubtitle: 'Carga un ficheiro local, obtén o texto e descárgao como texto plano ou subtítulos. Non se envían datos a terceiros: todo se fai no navegador.',
+    heroSubtitle: 'Carga un ficheiro local, obtén o texto, edítao e descárgao como texto plano ou subtítulos. Non se envían datos a terceiros: todo se fai no navegador.',
     selectMedia: 'Seleccionar audio ou vídeo',
     importSubtitles: 'Importar SRT ou VTT',
     localMediaHint: 'Admite audio e vídeo locais compatibles co navegador.',
@@ -512,10 +479,9 @@ const UI_STRINGS = {
     languageKorean: 'Coreano',
     languageIndonesian: 'Indonesio',
     languageVietnamese: 'Vietnamita',
-    modelTinyDescription: 'Carga lixeira e resposta máis rápida',
-    modelBaseDescription: 'Boa opción para a maioría dos propósitos',
-    modelSmallDescription: 'Máis calidade potencial, pero máis pesado no navegador',
-    modelMediumDescription: 'Aínda máis pesado; pode consumir moita memoria e tardar bastante',
+    modelTinyDescription: 'O máis rápido e lixeiro; ideal para probas, notas breves ou equipos modestos',
+    modelBaseDescription: 'O mellor equilibrio entre velocidade e calidade para a maioría dos casos',
+    modelSmallDescription: 'Adoita ir mellor con audios máis difíciles, varias voces ou idiomas menos claros',
     savedSessionNoFile: 'Transcrición sen ficheiro asociado',
     copied: 'Texto copiado ao portapapeis.',
     copyFailed: 'Non se puido copiar o texto ao portapapeis.',
@@ -539,7 +505,7 @@ const UI_STRINGS = {
   eu: {
     appName: 'Transcribe',
     heroTitle: 'Tokiko audioa eta bideoa transkribatu',
-    heroSubtitle: 'Kargatu fitxategi lokal bat, atera testua eta deskargatu testu arrunt edo azpititulu gisa. Ez da daturik hirugarrenei bidaltzen: dena nabigatzailean egiten da.',
+    heroSubtitle: 'Kargatu fitxategi lokal bat, atera testua, editatu eta deskargatu testu arrunt edo azpititulu gisa. Ez da daturik hirugarrenei bidaltzen: dena nabigatzailean egiten da.',
     selectMedia: 'Hautatu audioa edo bideoa',
     importSubtitles: 'Inportatu SRT edo VTT',
     localMediaHint: 'Zure nabigatzailearekin bateragarriak diren tokiko audio eta bideo fitxategiak onartzen ditu.',
@@ -609,10 +575,9 @@ const UI_STRINGS = {
     languageKorean: 'Koreera',
     languageIndonesian: 'Indonesiera',
     languageVietnamese: 'Vietnamera',
-    modelTinyDescription: 'Karga arina eta erantzun azkarragoa',
-    modelBaseDescription: 'Aukera ona helburu gehienetarako',
-    modelSmallDescription: 'Kalitate potentzial handiagoa, baina astunagoa nabigatzailean',
-    modelMediumDescription: 'Are astunagoa; memoria asko erabil dezake eta denbora gehiago behar du',
+    modelTinyDescription: 'Azkarrena eta arinena; aproposa probetarako, ohar laburretarako edo baliabide gutxiko gailuetarako',
+    modelBaseDescription: 'Abiadura eta kalitatearen arteko orekarik onena erabilera gehienetarako',
+    modelSmallDescription: 'Sarritan hobeto dabil audio zailagoekin, hainbat hiztunekin edo hain argiak ez diren hizkuntzekin',
     savedSessionNoFile: 'Lotutako fitxategirik gabeko transkripzioa',
     copied: 'Testua arbelean kopiatu da.',
     copyFailed: 'Ezin izan da testua arbelean kopiatu.',
@@ -641,7 +606,6 @@ function App() {
   const [subtitleTrackUrl, setSubtitleTrackUrl] = useState<string>('')
   const [subtitleTrackVersion, setSubtitleTrackVersion] = useState<number>(0)
   const [modelId, setModelId] = useState<string>(DEFAULT_MODEL_ID)
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('')
   const [segments, setSegments] = useState<Segment[]>([])
   const [plainText, setPlainText] = useState<string>('')
   const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null)
@@ -683,6 +647,9 @@ function App() {
   const savedSessionsSize = useMemo(() => estimatePersistedSessionsSize(savedSessions, savedSessionsLimit), [savedSessions, savedSessionsLimit])
   const uiLanguage = useMemo(() => resolveUiLanguage(uiLanguageSetting), [uiLanguageSetting])
   const texts = UI_STRINGS[uiLanguage]
+  const visibleStatus = downloadProgress === null && status === 'Descargando el modelo de transcripción…'
+    ? 'Cargando modelo…'
+    : status
 
   const updateHistoryAvailability = useCallback(() => {
     setCanUndo(undoStackRef.current.length > 0)
@@ -692,7 +659,6 @@ function App() {
   const restoreSavedSession = useCallback((session: PersistedSession, options?: { statusMessage?: string }) => {
     restoredFileInfoRef.current = session.fileInfo
     setModelId(isKnownModel(session.modelId) ? session.modelId : DEFAULT_MODEL_ID)
-    setSelectedLanguage(isKnownLanguage(session.selectedLanguage) ? session.selectedLanguage : '')
     setSegments(session.segments.map((segment) => ({ ...segment })))
     setPlainText(session.plainText)
     setDetectedLanguage(session.detectedLanguage)
@@ -900,13 +866,12 @@ function App() {
       modelId,
       plainText,
       savedAt: Date.now(),
-      selectedLanguage,
       segments,
       showSegments,
       version: 2,
     }, savedSessionsLimit)
     setSavedSessions(nextSessions)
-  }, [currentFileInfo, detectedLanguage, lastRunSeconds, modelId, plainText, savedSessionsLimit, selectedLanguage, segments, showSegments])
+  }, [currentFileInfo, detectedLanguage, lastRunSeconds, modelId, plainText, savedSessionsLimit, segments, showSegments])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -964,7 +929,6 @@ function App() {
     }
 
     restoredFileInfoRef.current = null
-    setSelectedLanguage('')
     setSegments([])
     setPlainText('')
     setDetectedLanguage(null)
@@ -1061,14 +1025,13 @@ function App() {
       return
     }
 
-    setSelectedLanguage('')
     setSegments([])
     setPlainText('')
     setDetectedLanguage(null)
     setShowSegments(true)
     setWorkflowProgress(0)
     setLastRunSeconds(null)
-    setStatus(file ? 'Archivo cargado. Selecciona el idioma del audio de origen para transcribir.' : 'Selecciona un archivo.')
+    setStatus(file ? 'Archivo cargado. Listo para transcribir.' : 'Selecciona un archivo.')
     undoStackRef.current = []
     redoStackRef.current = []
     updateHistoryAvailability()
@@ -1119,7 +1082,7 @@ function App() {
         type: 'transcribe',
         payload: {
           duration,
-          language: selectedLanguage,
+          language: null,
           modelId,
           samples: audioData.buffer,
         },
@@ -1131,12 +1094,6 @@ function App() {
 
   const handleTranscribe = async () => {
     if (!selectedFile || isTranscribing) {
-      return
-    }
-
-    if (!selectedLanguage) {
-      setErrorMessage(texts.missingAudioLanguageError)
-      setStatus('Falta seleccionar el idioma del audio de origen.')
       return
     }
 
@@ -1327,7 +1284,7 @@ function App() {
   const mergedPlainText = useMemo(() => plainText, [plainText])
 
   const outputBaseName = selectedFile ? makeOutputBaseName(selectedFile.name) : 'transcripcion'
-  const subtitleLanguageCode = selectedLanguage
+  const subtitleLanguageCode = detectedLanguage ?? 'und'
   const hasStickyMediaPreview = Boolean(selectedFile)
 
   const handleExportTxt = () => {
@@ -1406,36 +1363,24 @@ function App() {
                 </select>
               </label>
               <p className="hint settings-grid-note">{getModelDescription(modelId, texts)}</p>
-              <label>
-                <span>{texts.audioSourceLanguage}</span>
-                <select value={selectedLanguage} onChange={(event) => setSelectedLanguage(event.target.value)}>
-                  <option value="">{texts.selectLanguage}</option>
-                  {LANGUAGE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
             </div>
             <div className="hero-actions">
               <button className="primary-button" disabled={!selectedFile || isTranscribing} onClick={handleTranscribe}>
                 {isTranscribing ? texts.transcribing : texts.startTranscription}
               </button>
-              {isTranscribing ? (
-                <button className="secondary-button" onClick={handleCancel}>
-                  {texts.cancel}
-                </button>
-              ) : null}
             </div>
           </div>
 
           <article className="panel status-panel">
             <div className="panel-heading">
               <h2>{texts.status}</h2>
-              <span className="pill">{progressLabel(workflowProgress, downloadProgress, isTranscribing, texts, uiLanguage)}</span>
+              {isTranscribing ? (
+                <button className="secondary-button status-cancel-button" onClick={handleCancel} type="button">
+                  {texts.cancel}
+                </button>
+              ) : null}
             </div>
-            <p>{translateStatus(status, texts, uiLanguage)}</p>
+            <p>{translateStatus(visibleStatus, texts, uiLanguage)}</p>
             <div className="progress-block" aria-live="polite">
               <div className="progress-track">
                 <div className="progress-fill" style={{ width: `${Math.max(workflowProgress, 2)}%` }} />
@@ -1547,7 +1492,7 @@ function App() {
                     kind="subtitles"
                     label={texts.transcriptionTrack}
                     src={subtitleTrackUrl}
-                    srcLang={subtitleLanguageCode ?? 'und'}
+                    srcLang={subtitleLanguageCode}
                   />
                 ) : null}
               </video>
@@ -1768,11 +1713,19 @@ function createTranscriptionWorker(
     }
 
     if (message.type === 'download') {
-      setStatus('Descargando el modelo de transcripción…')
+      let reachedModelLoadPhase = false
       setDownloadProgress((current) => {
         const next = normalizeDownloadProgress(message.payload, current)
-        return next !== null && next >= 100 ? null : next
+        if (next !== null && next >= 100) {
+          reachedModelLoadPhase = true
+          return null
+        }
+        return next
       })
+      setStatus(reachedModelLoadPhase ? 'Cargando modelo…' : 'Descargando el modelo de transcripción…')
+      if (reachedModelLoadPhase) {
+        setWorkflowProgress((current) => advanceProgress(current, 68))
+      }
       return
     }
 
@@ -1858,23 +1811,6 @@ function mapStatusToProgress(status: string): number {
   if (normalized.includes('completada')) return 100
 
   return 10
-}
-
-function progressLabel(
-  progress: number,
-  downloadProgress: number | null,
-  isTranscribing: boolean,
-  texts: typeof UI_STRINGS[SupportedUiLanguage],
-  language: SupportedUiLanguage,
-): string {
-  if (!isTranscribing && progress === 0) return translateStatus('Listo para empezar', texts, language)
-  if (progress < 15) return translateStatus('Preparando archivo', texts, language)
-  if (progress < 50) return translateStatus('Extrayendo y decodificando audio', texts, language)
-  if (progress < 75) {
-    return translateStatus(downloadProgress !== null ? 'Cargando modelo' : 'Preparando transcripción', texts, language)
-  }
-  if (progress < 100) return translateStatus('Transcribiendo', texts, language)
-  return translateStatus('Terminado', texts, language)
 }
 
 function loadPersistedSessions(): PersistedSession[] {
@@ -2041,7 +1977,6 @@ function normalizePersistedSession(value: unknown, index: number): PersistedSess
     modelId: typeof session.modelId === 'string' ? session.modelId : DEFAULT_MODEL_ID,
     plainText: typeof session.plainText === 'string' ? session.plainText : '',
     savedAt: typeof session.savedAt === 'number' ? session.savedAt : Date.now() - index,
-    selectedLanguage: typeof session.selectedLanguage === 'string' ? session.selectedLanguage : '',
     segments: Array.isArray(session.segments) ? session.segments.filter(isPersistedSegment) : [],
     showSegments: true,
     version: 2,
@@ -2158,12 +2093,12 @@ function translateStatus(
       gl: 'Selecciona un ficheiro.',
       eu: 'Hautatu fitxategi bat.',
     }[language],
-    'Archivo cargado. Selecciona el idioma del audio de origen para transcribir.': {
-      es: 'Archivo cargado. Selecciona el idioma del audio de origen para transcribir.',
-      en: 'File loaded. Select the source audio language to transcribe.',
-      ca: 'Fitxer carregat. Selecciona l’idioma d’origen de l’àudio per transcriure.',
-      gl: 'Ficheiro cargado. Selecciona o idioma de orixe do audio para transcribir.',
-      eu: 'Fitxategia kargatu da. Hautatu audioaren jatorrizko hizkuntza transkribatzeko.',
+    'Archivo cargado. Listo para transcribir.': {
+      es: 'Archivo cargado. Listo para transcribir.',
+      en: 'File loaded. Ready to transcribe.',
+      ca: 'Fitxer carregat. Llest per transcriure.',
+      gl: 'Ficheiro cargado. Listo para transcribir.',
+      eu: 'Fitxategia kargatu da. Transkribatzeko prest.',
     }[language],
     'Archivo cargado. Transcripción recuperada del guardado local y sincronizada con el medio.': {
       es: 'Archivo cargado. Transcripción recuperada del guardado local y sincronizada con el medio.',
@@ -2186,13 +2121,6 @@ function translateStatus(
       gl: 'Transcrición restaurada desde o gardado local.',
       eu: 'Transkripzioa tokiko gordailutik leheneratu da.',
     }[language],
-    'Falta seleccionar el idioma del audio de origen.': {
-      es: 'Falta seleccionar el idioma del audio de origen.',
-      en: 'You still need to select the source audio language.',
-      ca: 'Cal seleccionar l’idioma d’origen de l’àudio.',
-      gl: 'Falta seleccionar o idioma de orixe do audio.',
-      eu: 'Audioaren jatorrizko hizkuntza hautatu behar da.',
-    }[language],
     'Transcribiendo en el navegador…': texts.transcribing,
     'Descargando el modelo de transcripción…': {
       es: 'Descargando el modelo de transcripción…',
@@ -2200,6 +2128,13 @@ function translateStatus(
       ca: 'Descarregant el model de transcripció…',
       gl: 'Descargando o modelo de transcrición…',
       eu: 'Transkripzio eredua deskargatzen…',
+    }[language],
+    'Cargando modelo…': {
+      es: 'Cargando modelo…',
+      en: 'Loading model…',
+      ca: 'Carregant model…',
+      gl: 'Cargando modelo…',
+      eu: 'Eredua kargatzen…',
     }[language],
     'Transcripción cancelada.': {
       es: 'Transcripción cancelada.',
@@ -2313,10 +2248,6 @@ function translateStatus(
 
 function isKnownModel(modelId: string): boolean {
   return MODEL_OPTIONS.some((option) => option.id === modelId)
-}
-
-function isKnownLanguage(language: string): boolean {
-  return LANGUAGE_OPTIONS.some((option) => option.value === language)
 }
 
 function buildSnapshotFromSegments(segments: Segment[], options?: Partial<Omit<EditableSnapshot, 'segments'>>): EditableSnapshot {

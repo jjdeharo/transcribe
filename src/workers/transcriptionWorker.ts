@@ -1,4 +1,4 @@
-import { pipeline } from '@huggingface/transformers'
+import { env, LogLevel, pipeline } from '@huggingface/transformers'
 
 type Segment = {
   id: number
@@ -44,6 +44,11 @@ type WhisperPipeline = {
     config: {
       max_source_positions: number
     }
+    generation_config?: {
+      decoder_start_token_id?: number | null
+      is_multilingual?: boolean | null
+      lang_to_id?: Record<string, number> | null
+    }
     generate(args: Record<string, unknown>): Promise<unknown>
   }
   processor: {
@@ -71,6 +76,8 @@ type WhisperPipeline = {
 const SAMPLE_RATE = 16_000
 const CHUNK_SECONDS = 20
 
+env.logLevel = LogLevel.NONE
+
 let currentModelId: string | null = null
 let currentTranscriber: WhisperPipeline | null = null
 
@@ -87,6 +94,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 
     postMessage({ type: 'status', payload: 'Preparando el modelo de transcripción…' })
     const transcriber = await getTranscriber(modelId)
+    const resolvedLanguage = language || await detectWhisperLanguage(transcriber, audio)
 
     const pieces = splitAudio(audio, CHUNK_SECONDS)
     const total = pieces.length
@@ -100,7 +108,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       const result = await transcriber(piece.audio, {
         return_timestamps: true,
         task: 'transcribe',
-        ...(language ? { language } : {}),
+        ...(resolvedLanguage ? { language: resolvedLanguage } : {}),
       })
 
       const normalized = normalizeChunkSegments(result, piece.offsetSeconds, piece.durationSeconds)
@@ -120,14 +128,20 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       payload: {
         segments: finalSegments,
         text: collectedTexts.join('\n').trim(),
-        detectedLanguage: null,
+        detectedLanguage: resolvedLanguage,
       },
     })
   } catch (error) {
     const rawMessage = error instanceof Error ? error.message : 'La transcripción falló en el worker.'
-    const message = rawMessage.includes('Unauthorized access to file')
-      ? 'El modelo seleccionado no está disponible públicamente para esta aplicación en el navegador.'
-      : rawMessage
+    const normalizedMessage = rawMessage.toLowerCase()
+    const message =
+      rawMessage.includes('Unauthorized access to file')
+        ? 'El modelo seleccionado no está disponible públicamente para esta aplicación en el navegador.'
+        : normalizedMessage.includes('bad_alloc') || normalizedMessage.includes('out of memory')
+          ? 'No hay memoria suficiente para cargar o ejecutar este modelo en el navegador. Prueba con un modelo mas ligero o cierra otras pestañas y aplicaciones antes de reintentarlo.'
+        : normalizedMessage.includes('networkerror') || normalizedMessage.includes('failed to fetch')
+          ? 'No se pudo descargar o cargar el modelo por un problema de red. Si tu conexion es inestable, vuelve a intentarlo o prueba primero con un modelo mas ligero.'
+          : rawMessage
     postMessage({ type: 'error', payload: message })
   }
 }
@@ -146,6 +160,64 @@ async function getTranscriber(modelId: string) {
   })) as unknown as WhisperPipeline
 
   return currentTranscriber
+}
+
+async function detectWhisperLanguage(transcriber: WhisperPipeline, audio: Float32Array): Promise<string | null> {
+  const generationConfig = transcriber.model.generation_config
+  if (!generationConfig?.is_multilingual || !generationConfig.lang_to_id) {
+    return null
+  }
+
+  const decoderStartTokenId = generationConfig.decoder_start_token_id
+  if (typeof decoderStartTokenId !== 'number') {
+    return null
+  }
+
+  const probeChunk = splitAudio(audio, CHUNK_SECONDS)[0]?.audio
+  if (!probeChunk || probeChunk.length === 0) {
+    return null
+  }
+
+  const { input_features } = await transcriber.processor(probeChunk)
+  const generated = await transcriber.model.generate({
+    inputs: input_features,
+    decoder_input_ids: [[decoderStartTokenId]],
+    max_new_tokens: 1,
+  })
+
+  const sequence = extractGeneratedSequence(generated)
+  const languageTokenId = sequence[1]
+  if (typeof languageTokenId !== 'number') {
+    return null
+  }
+
+  const languageToken = Object.entries(generationConfig.lang_to_id).find(([, id]) => id === languageTokenId)?.[0]
+  return languageToken ? languageToken.replace(/^<\|/, '').replace(/\|>$/, '') : null
+}
+
+function extractGeneratedSequence(generated: unknown): number[] {
+  if (generated instanceof Int32Array || generated instanceof Uint32Array || generated instanceof Float32Array) {
+    return Array.from(generated)
+  }
+
+  if (Array.isArray(generated)) {
+    return generated.flat(Infinity).map((value) => Number(value)).filter((value) => Number.isFinite(value))
+  }
+
+  if (generated && typeof generated === 'object') {
+    const maybeSequence = (generated as { sequences?: unknown }).sequences
+    if (Array.isArray(maybeSequence)) {
+      return maybeSequence.flat(Infinity).map((value) => Number(value)).filter((value) => Number.isFinite(value))
+    }
+    if (maybeSequence && typeof maybeSequence === 'object' && 'tolist' in maybeSequence && typeof maybeSequence.tolist === 'function') {
+      return (maybeSequence.tolist() as unknown[]).flat(Infinity).map((value) => Number(value)).filter((value) => Number.isFinite(value))
+    }
+    if ('tolist' in (generated as object) && typeof (generated as { tolist?: unknown }).tolist === 'function') {
+      return ((generated as { tolist: () => unknown[] }).tolist() as unknown[]).flat(Infinity).map((value) => Number(value)).filter((value) => Number.isFinite(value))
+    }
+  }
+
+  return []
 }
 
 function splitAudio(audio: Float32Array, chunkSeconds: number) {
