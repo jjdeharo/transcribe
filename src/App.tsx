@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type MutableRefObject, type SetStateAction } from 'react'
 import './App.css'
 import {
   TranscriptionError,
@@ -10,6 +10,9 @@ import {
 import {
   downloadTextFile,
   makeOutputBaseName,
+  type SubtitleAppearance,
+  type SubtitleAlignment,
+  type SubtitleShadow,
   toSrt,
   toTxt,
   toVtt,
@@ -108,6 +111,21 @@ const SESSION_STORAGE_KEY = 'media2text-session'
 const SESSION_LIMIT_STORAGE_KEY = 'media2text-session-limit'
 const UI_LANGUAGE_STORAGE_KEY = 'media2text-ui-language'
 
+const DEFAULT_SUBTITLE_APPEARANCE: SubtitleAppearance = {
+  alignment: 'center',
+  backgroundColor: '#101418',
+  backgroundOpacity: 0.78,
+  bold: false,
+  fontSize: 100,
+  italic: false,
+  linePosition: 88,
+  profile: 'standard',
+  shadow: 'soft',
+  textColor: '#ffffff',
+  underline: false,
+  width: 72,
+}
+
 const UI_LANGUAGE_OPTIONS = [
   { value: 'auto', label: 'Auto' },
   { value: 'es', label: 'Español' },
@@ -137,6 +155,7 @@ const UI_STRINGS = {
     modelDownload: 'Descarga del modelo',
     saveAs: 'Guardar',
     copyAs: 'Copiar',
+    close: 'Cerrar',
     currentTime: 'Tiempo actual',
     lastRun: 'Última ejecución',
     noData: 'sin datos',
@@ -159,6 +178,37 @@ const UI_STRINGS = {
     noMediaLoaded: 'Todavía no has cargado ningún archivo.',
     extractedText: 'Texto extraído',
     extractedTextHint: 'Si quieres corregir subtítulos o tiempos, edita los fragmentos temporizados. Este cuadro sirve sobre todo para revisar, copiar o exportar.',
+    subtitleAppearanceButton: 'Aspecto de los subtítulos',
+    subtitleAppearanceTooltip: 'Aspecto de los subtítulos (solo para el formato VTT)',
+    subtitleAppearanceTitle: 'Aspecto de subtítulos VTT',
+    subtitleAppearanceDescription: 'La edición de texto sigue siendo limpia: estos ajustes solo se aplican a la vista previa y a la exportación VTT. No afectan a TXT ni a SRT.',
+    subtitleAppearanceNotice: 'Esto solo configura VTT. La presentación final puede variar según dónde se reproduzca: la web, el visor o la plataforma de destino pueden interpretar el VTT de forma diferente.',
+    subtitlePreview: 'Vista previa',
+    subtitlePreviewSample: 'Ejemplo de subtítulo para comprobar legibilidad y contraste.',
+    subtitleProfile: 'Perfil de exportación',
+    subtitleProfileStandard: 'VTT enriquecido',
+    subtitleProfileYoutube: 'Modo YouTube',
+    subtitleProfileYoutubeHint: 'Limita la vista previa a una versión más cercana a lo que suele conservar YouTube.',
+    subtitleAdvanced: 'Ajustes avanzados',
+    subtitleReset: 'Quitar personalización',
+    subtitleFontSize: 'Tamaño',
+    subtitleTextColor: 'Color del texto',
+    subtitleBackgroundColor: 'Color del fondo',
+    subtitleBackgroundOpacity: 'Opacidad del fondo',
+    subtitleAlignment: 'Alineación',
+    subtitleAlignmentLeft: 'Izquierda',
+    subtitleAlignmentCenter: 'Centro',
+    subtitleAlignmentRight: 'Derecha',
+    subtitleLinePosition: 'Posición vertical',
+    subtitleWidth: 'Anchura',
+    subtitleEmphasis: 'Énfasis',
+    subtitleBold: 'Negrita',
+    subtitleItalic: 'Cursiva',
+    subtitleUnderline: 'Subrayado',
+    subtitleShadow: 'Sombra',
+    subtitleShadowNone: 'Ninguna',
+    subtitleShadowSoft: 'Suave',
+    subtitleShadowStrong: 'Fuerte',
     fragmentsTimed: 'Fragmentos temporizados',
     noBlocks: 'Aún no hay bloques',
     blocksCount: '{count} bloques',
@@ -239,6 +289,7 @@ const UI_STRINGS = {
     modelDownload: 'Model download',
     saveAs: 'Save',
     copyAs: 'Copy',
+    close: 'Close',
     currentTime: 'Current time',
     lastRun: 'Last run',
     noData: 'no data',
@@ -261,6 +312,37 @@ const UI_STRINGS = {
     noMediaLoaded: 'You have not loaded any file yet.',
     extractedText: 'Extracted text',
     extractedTextHint: 'If you want to correct subtitles or timings, edit the timed segments. This box is mainly for reviewing, copying, or exporting.',
+    subtitleAppearanceButton: 'Subtitle appearance',
+    subtitleAppearanceTooltip: 'Subtitle appearance (VTT format only)',
+    subtitleAppearanceTitle: 'VTT subtitle appearance',
+    subtitleAppearanceDescription: 'Text editing stays clean: these settings only apply to preview and VTT export. They do not affect TXT or SRT.',
+    subtitleAppearanceNotice: 'This only configures VTT. The final presentation may vary depending on where it is played: the web, the viewer, or the target platform may interpret VTT differently.',
+    subtitlePreview: 'Preview',
+    subtitlePreviewSample: 'Sample subtitle to check readability and contrast.',
+    subtitleProfile: 'Export profile',
+    subtitleProfileStandard: 'Enhanced VTT',
+    subtitleProfileYoutube: 'YouTube mode',
+    subtitleProfileYoutubeHint: 'Limits the preview to a version closer to what YouTube usually preserves.',
+    subtitleAdvanced: 'Advanced settings',
+    subtitleReset: 'Clear customization',
+    subtitleFontSize: 'Size',
+    subtitleTextColor: 'Text color',
+    subtitleBackgroundColor: 'Background color',
+    subtitleBackgroundOpacity: 'Background opacity',
+    subtitleAlignment: 'Alignment',
+    subtitleAlignmentLeft: 'Left',
+    subtitleAlignmentCenter: 'Center',
+    subtitleAlignmentRight: 'Right',
+    subtitleLinePosition: 'Vertical position',
+    subtitleWidth: 'Width',
+    subtitleEmphasis: 'Emphasis',
+    subtitleBold: 'Bold',
+    subtitleItalic: 'Italic',
+    subtitleUnderline: 'Underline',
+    subtitleShadow: 'Shadow',
+    subtitleShadowNone: 'None',
+    subtitleShadowSoft: 'Soft',
+    subtitleShadowStrong: 'Strong',
     fragmentsTimed: 'Timed segments',
     noBlocks: 'No blocks yet',
     blocksCount: '{count} blocks',
@@ -341,6 +423,7 @@ const UI_STRINGS = {
     modelDownload: 'Descàrrega del model',
     saveAs: 'Desa',
     copyAs: 'Copia',
+    close: 'Tanca',
     currentTime: 'Temps actual',
     lastRun: 'Darrera execució',
     noData: 'sense dades',
@@ -363,6 +446,37 @@ const UI_STRINGS = {
     noMediaLoaded: 'Encara no has carregat cap fitxer.',
     extractedText: 'Text extret',
     extractedTextHint: 'Si vols corregir subtítols o temps, edita els fragments temporitzats. Aquest quadre serveix sobretot per revisar, copiar o exportar.',
+    subtitleAppearanceButton: 'Aspecte dels subtítols',
+    subtitleAppearanceTooltip: 'Aspecte dels subtítols (només per al format VTT)',
+    subtitleAppearanceTitle: 'Aspecte dels subtítols VTT',
+    subtitleAppearanceDescription: 'L’edició del text continua sent neta: aquests ajustos només s’apliquen a la previsualització i a l’exportació VTT. No afecten TXT ni SRT.',
+    subtitleAppearanceNotice: 'Això només configura VTT. La presentació final pot variar segons on es reprodueixi: el web, el visor o la plataforma de destí poden interpretar el VTT de manera diferent.',
+    subtitlePreview: 'Previsualització',
+    subtitlePreviewSample: 'Exemple de subtítol per comprovar llegibilitat i contrast.',
+    subtitleProfile: 'Perfil d’exportació',
+    subtitleProfileStandard: 'VTT enriquit',
+    subtitleProfileYoutube: 'Mode YouTube',
+    subtitleProfileYoutubeHint: 'Limita la previsualització a una versió més propera al que YouTube sol conservar.',
+    subtitleAdvanced: 'Ajustos avançats',
+    subtitleReset: 'Treure personalització',
+    subtitleFontSize: 'Mida',
+    subtitleTextColor: 'Color del text',
+    subtitleBackgroundColor: 'Color del fons',
+    subtitleBackgroundOpacity: 'Opacitat del fons',
+    subtitleAlignment: 'Alineació',
+    subtitleAlignmentLeft: 'Esquerra',
+    subtitleAlignmentCenter: 'Centre',
+    subtitleAlignmentRight: 'Dreta',
+    subtitleLinePosition: 'Posició vertical',
+    subtitleWidth: 'Amplada',
+    subtitleEmphasis: 'Èmfasi',
+    subtitleBold: 'Negreta',
+    subtitleItalic: 'Cursiva',
+    subtitleUnderline: 'Subratllat',
+    subtitleShadow: 'Ombra',
+    subtitleShadowNone: 'Cap',
+    subtitleShadowSoft: 'Suau',
+    subtitleShadowStrong: 'Forta',
     fragmentsTimed: 'Fragments temporitzats',
     noBlocks: 'Encara no hi ha blocs',
     blocksCount: '{count} blocs',
@@ -443,6 +557,7 @@ const UI_STRINGS = {
     modelDownload: 'Descarga do modelo',
     saveAs: 'Gardar',
     copyAs: 'Copiar',
+    close: 'Pechar',
     currentTime: 'Tempo actual',
     lastRun: 'Última execución',
     noData: 'sen datos',
@@ -465,6 +580,37 @@ const UI_STRINGS = {
     noMediaLoaded: 'Aínda non cargaches ningún ficheiro.',
     extractedText: 'Texto extraído',
     extractedTextHint: 'Se queres corrixir subtítulos ou tempos, edita os fragmentos temporizados. Este cadro serve sobre todo para revisar, copiar ou exportar.',
+    subtitleAppearanceButton: 'Aspecto dos subtítulos',
+    subtitleAppearanceTooltip: 'Aspecto dos subtítulos (só para o formato VTT)',
+    subtitleAppearanceTitle: 'Aspecto dos subtítulos VTT',
+    subtitleAppearanceDescription: 'A edición do texto segue sendo limpa: estes axustes só se aplican á vista previa e á exportación VTT. Non afectan a TXT nin a SRT.',
+    subtitleAppearanceNotice: 'Isto só configura VTT. A presentación final pode variar segundo onde se reproduza: a web, o visor ou a plataforma de destino poden interpretar o VTT de forma diferente.',
+    subtitlePreview: 'Vista previa',
+    subtitlePreviewSample: 'Exemplo de subtítulo para comprobar lexibilidade e contraste.',
+    subtitleProfile: 'Perfil de exportación',
+    subtitleProfileStandard: 'VTT enriquecido',
+    subtitleProfileYoutube: 'Modo YouTube',
+    subtitleProfileYoutubeHint: 'Limita a vista previa a unha versión máis próxima ao que YouTube adoita conservar.',
+    subtitleAdvanced: 'Axustes avanzados',
+    subtitleReset: 'Quitar personalización',
+    subtitleFontSize: 'Tamaño',
+    subtitleTextColor: 'Cor do texto',
+    subtitleBackgroundColor: 'Cor do fondo',
+    subtitleBackgroundOpacity: 'Opacidade do fondo',
+    subtitleAlignment: 'Aliñación',
+    subtitleAlignmentLeft: 'Esquerda',
+    subtitleAlignmentCenter: 'Centro',
+    subtitleAlignmentRight: 'Dereita',
+    subtitleLinePosition: 'Posición vertical',
+    subtitleWidth: 'Largura',
+    subtitleEmphasis: 'Énfase',
+    subtitleBold: 'Negra',
+    subtitleItalic: 'Cursiva',
+    subtitleUnderline: 'Subliñado',
+    subtitleShadow: 'Sombra',
+    subtitleShadowNone: 'Ningunha',
+    subtitleShadowSoft: 'Suave',
+    subtitleShadowStrong: 'Forte',
     fragmentsTimed: 'Fragmentos temporizados',
     noBlocks: 'Aínda non hai bloques',
     blocksCount: '{count} bloques',
@@ -545,6 +691,7 @@ const UI_STRINGS = {
     modelDownload: 'Ereduaren deskarga',
     saveAs: 'Gorde',
     copyAs: 'Kopiatu',
+    close: 'Itxi',
     currentTime: 'Uneko denbora',
     lastRun: 'Azken exekuzioa',
     noData: 'daturik ez',
@@ -567,6 +714,37 @@ const UI_STRINGS = {
     noMediaLoaded: 'Oraindik ez duzu fitxategirik kargatu.',
     extractedText: 'Ateratako testua',
     extractedTextHint: 'Azpitituluak edo denborak zuzendu nahi badituzu, editatu denboraz markatutako zatiak. Koadro hau batez ere berrikusi, kopiatu edo esportatzeko da.',
+    subtitleAppearanceButton: 'Azpitituluen itxura',
+    subtitleAppearanceTooltip: 'Azpitituluen itxura (VTT formaturako bakarrik)',
+    subtitleAppearanceTitle: 'VTT azpitituluen itxura',
+    subtitleAppearanceDescription: 'Testuaren edizioa garbi mantentzen da: ezarpen hauek aurrebistan eta VTT esportazioan baino ez dira aplikatzen. Ez dute TXT edo SRTri eragiten.',
+    subtitleAppearanceNotice: 'Honek VTT bakarrik konfiguratzen du. Azken aurkezpena aldatu daiteke non erreproduzitzen den arabera: webak, ikustaileak edo helmugako plataformak VTT modu desberdinean interpreta dezakete.',
+    subtitlePreview: 'Aurrebista',
+    subtitlePreviewSample: 'Irakurgarritasuna eta kontrastea egiaztatzeko azpititulu adibidea.',
+    subtitleProfile: 'Esportazio profila',
+    subtitleProfileStandard: 'VTT aberastua',
+    subtitleProfileYoutube: 'YouTube modua',
+    subtitleProfileYoutubeHint: 'Aurrebista YouTubek normalean gordetzen duenaren antzeko bertsio batera mugatzen du.',
+    subtitleAdvanced: 'Ezarpen aurreratuak',
+    subtitleReset: 'Pertsonalizazioa kendu',
+    subtitleFontSize: 'Tamaina',
+    subtitleTextColor: 'Testuaren kolorea',
+    subtitleBackgroundColor: 'Atzeko planoko kolorea',
+    subtitleBackgroundOpacity: 'Atzeko planoko opakutasuna',
+    subtitleAlignment: 'Lerrokatzea',
+    subtitleAlignmentLeft: 'Ezkerra',
+    subtitleAlignmentCenter: 'Erdia',
+    subtitleAlignmentRight: 'Eskuina',
+    subtitleLinePosition: 'Kokapen bertikala',
+    subtitleWidth: 'Zabalera',
+    subtitleEmphasis: 'Enfasia',
+    subtitleBold: 'Lodia',
+    subtitleItalic: 'Etzana',
+    subtitleUnderline: 'Azpimarratua',
+    subtitleShadow: 'Itzala',
+    subtitleShadowNone: 'Bat ere ez',
+    subtitleShadowSoft: 'Leuna',
+    subtitleShadowStrong: 'Indartsua',
     fragmentsTimed: 'Denboraz markatutako zatiak',
     noBlocks: 'Oraindik ez dago bloketik',
     blocksCount: '{count} bloke',
@@ -658,6 +836,9 @@ function App() {
   const [playbackRate, setPlaybackRate] = useState<number>(1)
   const [mediaElement, setMediaElement] = useState<HTMLMediaElement | null>(null)
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null)
+  const [isSubtitleAppearanceOpen, setIsSubtitleAppearanceOpen] = useState(false)
+  const [subtitleAppearance, setSubtitleAppearance] = useState<SubtitleAppearance>(DEFAULT_SUBTITLE_APPEARANCE)
+  const [subtitlePreviewTime, setSubtitlePreviewTime] = useState<number>(0)
 
   const workerRef = useRef<Worker | null>(null)
   const mediaRef = useRef<HTMLMediaElement | null>(null)
@@ -681,6 +862,17 @@ function App() {
   const uiLanguage = useMemo(() => resolveUiLanguage(uiLanguageSetting), [uiLanguageSetting])
   const texts = UI_STRINGS[uiLanguage]
   const playbackRateOptions = [0.75, 1, 1.25, 1.5, 1.75, 2]
+  const activeSegment = useMemo(() => segments.find((segment) => segment.id === activeSegmentId) ?? null, [activeSegmentId, segments])
+  const subtitlePreviewStyle = useMemo(() => buildSubtitlePreviewStyle(subtitleAppearance), [subtitleAppearance])
+  const subtitleCueStyle = useMemo(() => buildSubtitleCueStyle(subtitleAppearance), [subtitleAppearance])
+  const hasPreviewVideo = Boolean(mediaUrl && selectedFile && isVideoFile(selectedFile))
+  const previewSegment = useMemo(
+    () => findSegmentAtTime(segments, subtitlePreviewTime),
+    [segments, subtitlePreviewTime],
+  )
+  const subtitlePreviewText = hasPreviewVideo
+    ? previewSegment?.text || ''
+    : activeSegment?.text || segments[0]?.text || texts.subtitlePreviewSample
   const visibleStatus = downloadProgress === null && status === 'Descargando el modelo de transcripción…'
     ? 'Cargando modelo…'
     : status
@@ -709,6 +901,14 @@ function App() {
       element.playbackRate = playbackRate
     }
   }, [playbackRate])
+
+  const updateSubtitleAppearance = useCallback((patch: Partial<SubtitleAppearance>) => {
+    setSubtitleAppearance((current) => normalizeSubtitleAppearance({ ...current, ...patch }))
+  }, [])
+
+  const resetSubtitleAppearance = useCallback(() => {
+    setSubtitleAppearance(DEFAULT_SUBTITLE_APPEARANCE)
+  }, [])
 
   const restoreSavedSession = useCallback((session: PersistedSession, options?: { statusMessage?: string }) => {
     restoredFileInfoRef.current = session.fileInfo
@@ -801,7 +1001,7 @@ function App() {
       return
     }
 
-    const nextTrackUrl = segments.length > 0 ? makeSubtitleTrackUrl(segments) : ''
+    const nextTrackUrl = segments.length > 0 ? makeSubtitleTrackUrl(segments, subtitleAppearance) : ''
     setSubtitleTrackUrl((current) => {
       if (current) {
         URL.revokeObjectURL(current)
@@ -809,7 +1009,7 @@ function App() {
       return nextTrackUrl
     })
     setSubtitleTrackVersion((current) => current + 1)
-  }, [segments, selectedFile])
+  }, [segments, selectedFile, subtitleAppearance])
 
   useEffect(() => {
     if (!videoElement || !subtitleTrackUrl) {
@@ -887,6 +1087,14 @@ function App() {
       mediaElement.removeEventListener('loadedmetadata', syncActiveSegment)
     }
   }, [segments, mediaElement, mediaUrl])
+
+  useEffect(() => {
+    if (!isSubtitleAppearanceOpen) {
+      return
+    }
+
+    setSubtitlePreviewTime(0)
+  }, [isSubtitleAppearanceOpen, mediaUrl])
 
   useEffect(() => {
     if (activeSegmentId === null) {
@@ -1354,7 +1562,6 @@ function App() {
   const mergedPlainText = useMemo(() => plainText, [plainText])
 
   const outputBaseName = selectedFile ? makeOutputBaseName(selectedFile.name) : 'transcripcion'
-  const subtitleLanguageCode = detectedLanguage ?? 'und'
   const hasStickyMediaPreview = Boolean(selectedFile)
 
   const handleExportTxt = () => {
@@ -1379,7 +1586,7 @@ function App() {
   }
 
   const handleExportVtt = () => {
-    downloadTextFile(`${outputBaseName}.vtt`, toVtt(segments), 'text/vtt;charset=utf-8')
+    downloadTextFile(`${outputBaseName}.vtt`, toVtt(segments, subtitleAppearance), 'text/vtt;charset=utf-8')
   }
 
   const handleCopySrt = async () => {
@@ -1387,7 +1594,7 @@ function App() {
   }
 
   const handleCopyVtt = async () => {
-    await handleCopy('VTT', toVtt(segments))
+    await handleCopy('VTT', toVtt(segments, subtitleAppearance))
   }
 
       return (
@@ -1554,7 +1761,11 @@ function App() {
           <div className="panel-heading">
             <h2>{texts.file}</h2>
             <div className="preview-tools">
-              <span className="pill">{selectedFile ? (isVideoFile(selectedFile) ? texts.video : texts.audio) : texts.noFile}</span>
+              {mediaUrl ? (
+                <button className="secondary-button preview-action-button" disabled={segments.length === 0} onClick={() => setIsSubtitleAppearanceOpen(true)} title={texts.subtitleAppearanceTooltip} type="button">
+                  {texts.subtitleAppearanceButton}
+                </button>
+              ) : null}
               <label className="playback-rate-control">
                 <span>{texts.playbackSpeed}</span>
                 <select value={String(playbackRate)} onChange={(event) => setPlaybackRate(Number(event.target.value))}>
@@ -1570,23 +1781,17 @@ function App() {
 
           {mediaUrl ? (
             isVideoFile(selectedFile!) ? (
-              <video
-                ref={attachVideoElement}
-                className="media-player"
-                controls
-                src={mediaUrl}
-              >
-                {subtitleTrackUrl ? (
-                  <track
-                    key={subtitleTrackVersion}
-                    default
-                    kind="subtitles"
-                    label={texts.transcriptionTrack}
-                    src={subtitleTrackUrl}
-                    srcLang={subtitleLanguageCode}
-                  />
-                ) : null}
-              </video>
+              <div className="video-preview-shell">
+                <video
+                  ref={attachVideoElement}
+                  className="media-player"
+                  controls
+                  src={mediaUrl}
+                />
+                <div aria-live="polite" className="subtitle-overlay" style={subtitlePreviewStyle}>
+                  <div className="subtitle-overlay-cue" style={subtitleCueStyle}>{renderStyledSubtitleText(subtitlePreviewText, subtitleAppearance)}</div>
+                </div>
+              </div>
             ) : (
               <audio
                 ref={attachAudioElement}
@@ -1598,49 +1803,52 @@ function App() {
           ) : (
             <div className="empty-state">{texts.noMediaLoaded}</div>
           )}
+
+          {mediaUrl ? (
+            <div className="media-panel-actions">
+              <div className="compact-action-frame">
+                <span className="compact-actions-label">{texts.saveAs}</span>
+                <div className="compact-actions-row compact-actions-row-single">
+                  <span aria-label={texts.saveAs} className="compact-action-icon" title={texts.saveAs}>
+                    <svg aria-hidden="true" viewBox="0 0 24 24">
+                      <path d="M6 4h9l3 3v13H6z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                      <path d="M9 4v5h6V4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                      <path d="M9 18h6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                  <button className="compact-action-button" disabled={!canExport} onClick={handleExportTxt} title={`${texts.saveAs} TXT`} type="button">TXT</button>
+                  <button className="compact-action-button" disabled={!canExport} onClick={handleExportSrt} title={`${texts.saveAs} SRT`} type="button">SRT</button>
+                  <button className="compact-action-button" disabled={!canExport} onClick={handleExportVtt} title={`${texts.saveAs} VTT`} type="button">VTT</button>
+                </div>
+              </div>
+              <div className="compact-action-frame">
+                <span className="compact-actions-label">{texts.copyAs}</span>
+                <div className="compact-actions-row compact-actions-row-single">
+                  <span aria-label={texts.copyAs} className="compact-action-icon" title={texts.copyAs}>
+                    <svg aria-hidden="true" viewBox="0 0 24 24">
+                      <rect x="9" y="9" width="10" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                      <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                  <button className="compact-action-button" disabled={!canExport} onClick={handleCopyText} title={`${texts.copyAs} TXT`} type="button">TXT</button>
+                  <button className="compact-action-button" disabled={!canExport} onClick={handleCopySrt} title={`${texts.copyAs} SRT`} type="button">SRT</button>
+                  <button className="compact-action-button" disabled={!canExport} onClick={handleCopyVtt} title={`${texts.copyAs} VTT`} type="button">VTT</button>
+                </div>
+              </div>
+              {copyMessage ? (
+                <div className="copy-toast" role="status" aria-live="polite">
+                  <p>{copyMessage}</p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </article>
 
         <div className="workspace-main">
           <article className="panel output-panel">
             <div className="panel-heading">
               <h2>{texts.extractedText}</h2>
-              <div className="export-actions">
-                <div className="export-group">
-                  <span className="export-group-title">{texts.saveAs}</span>
-                  <div className="export-group-actions">
-                    <button disabled={!canExport} onClick={handleExportTxt} type="button">
-                      <span aria-hidden="true">↓</span> TXT
-                    </button>
-                    <button disabled={!canExport} onClick={handleExportSrt} type="button">
-                      <span aria-hidden="true">↓</span> SRT
-                    </button>
-                    <button disabled={!canExport} onClick={handleExportVtt} type="button">
-                      <span aria-hidden="true">↓</span> VTT
-                    </button>
-                  </div>
-                </div>
-                <div aria-hidden="true" className="export-divider" />
-                <div className="export-group">
-                  <span className="export-group-title">{texts.copyAs}</span>
-                  <div className="export-group-actions">
-                    <button disabled={!canExport} onClick={handleCopyText} type="button">
-                      <span aria-hidden="true">⧉</span> TXT
-                    </button>
-                    <button disabled={!canExport} onClick={handleCopySrt} type="button">
-                      <span aria-hidden="true">⧉</span> SRT
-                    </button>
-                    <button disabled={!canExport} onClick={handleCopyVtt} type="button">
-                      <span aria-hidden="true">⧉</span> VTT
-                    </button>
-                  </div>
-                </div>
-              </div>
             </div>
-            {copyMessage ? (
-              <div className="status-box copy-feedback" role="status" aria-live="polite">
-                <p>{copyMessage}</p>
-              </div>
-            ) : null}
             <p className="small-note output-hint">{texts.extractedTextHint}</p>
 
             <textarea
@@ -1748,6 +1956,152 @@ function App() {
           </section>
         </div>
       </section>
+
+      {isSubtitleAppearanceOpen ? (
+        <div className="subtitle-appearance-modal" role="dialog" aria-modal="true" aria-labelledby="subtitle-appearance-title">
+          <div className="subtitle-appearance-backdrop" onClick={() => setIsSubtitleAppearanceOpen(false)} />
+          <div className="subtitle-appearance-dialog">
+            <div className="panel-heading">
+              <div>
+                <h2 id="subtitle-appearance-title">{texts.subtitleAppearanceTitle}</h2>
+                <p className="small-note subtitle-appearance-description">{texts.subtitleAppearanceDescription}</p>
+              </div>
+              <button className="secondary-button" onClick={() => setIsSubtitleAppearanceOpen(false)} type="button">
+                {texts.close}
+              </button>
+            </div>
+
+            <div className="subtitle-appearance-grid">
+              <section className="subtitle-preview-panel">
+                <h3>{texts.subtitlePreview}</h3>
+                <div className="subtitle-preview-surface">
+                  <div className={`subtitle-preview-media ${hasPreviewVideo ? 'subtitle-preview-media-video' : 'subtitle-preview-media-audio'}`}>
+                    {hasPreviewVideo ? (
+                      <video
+                        autoPlay
+                        controls
+                        className="subtitle-preview-video"
+                        loop
+                        muted
+                        onLoadedMetadata={(event) => setSubtitlePreviewTime(event.currentTarget.currentTime)}
+                        onSeeked={(event) => setSubtitlePreviewTime(event.currentTarget.currentTime)}
+                        onTimeUpdate={(event) => setSubtitlePreviewTime(event.currentTarget.currentTime)}
+                        playsInline
+                        src={mediaUrl}
+                      />
+                    ) : (
+                      <div aria-hidden="true" className="subtitle-preview-audio-art">
+                        <span />
+                        <span />
+                        <span />
+                        <span />
+                        <span />
+                      </div>
+                    )}
+                    <div className="subtitle-preview-overlay" style={subtitlePreviewStyle}>
+                      {subtitlePreviewText ? <div className="subtitle-overlay-cue" style={subtitleCueStyle}>{renderStyledSubtitleText(subtitlePreviewText, subtitleAppearance)}</div> : null}
+                    </div>
+                  </div>
+                </div>
+                <p className="small-note">{texts.subtitleAppearanceNotice}</p>
+              </section>
+
+              <section className="subtitle-controls-panel">
+                <div className="subtitle-settings-block">
+                  <h3>{texts.subtitleProfile}</h3>
+                  <div className="choice-row">
+                    <label className="choice-pill">
+                      <input
+                        checked={subtitleAppearance.profile === 'standard'}
+                        name="subtitle-profile"
+                        onChange={() => updateSubtitleAppearance({ profile: 'standard' })}
+                        type="radio"
+                      />
+                      <span>{texts.subtitleProfileStandard}</span>
+                    </label>
+                    <label className="choice-pill">
+                      <input
+                        checked={subtitleAppearance.profile === 'youtube'}
+                        name="subtitle-profile"
+                        onChange={() => updateSubtitleAppearance({ profile: 'youtube' })}
+                        type="radio"
+                      />
+                      <span>{texts.subtitleProfileYoutube}</span>
+                    </label>
+                  </div>
+                  {subtitleAppearance.profile === 'youtube' ? <p className="small-note">{texts.subtitleProfileYoutubeHint}</p> : null}
+                </div>
+
+                <div className="subtitle-settings-block">
+                  <div className="subtitle-settings-header">
+                    <h3>{texts.subtitleAdvanced}</h3>
+                    <button className="secondary-button" onClick={resetSubtitleAppearance} type="button">
+                      {texts.subtitleReset}
+                    </button>
+                  </div>
+                  <div className="subtitle-form-grid">
+                    <label>
+                      <span>{texts.subtitleFontSize}: {subtitleAppearance.fontSize}%</span>
+                      <input max="220" min="70" onChange={(event) => updateSubtitleAppearance({ fontSize: Number(event.target.value) })} type="range" value={subtitleAppearance.fontSize} />
+                    </label>
+                    <label>
+                      <span>{texts.subtitleAlignment}</span>
+                      <select value={subtitleAppearance.alignment} onChange={(event) => updateSubtitleAppearance({ alignment: event.target.value as SubtitleAlignment })}>
+                        <option value="left">{texts.subtitleAlignmentLeft}</option>
+                        <option value="center">{texts.subtitleAlignmentCenter}</option>
+                        <option value="right">{texts.subtitleAlignmentRight}</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>{texts.subtitleLinePosition}: {subtitleAppearance.linePosition}%</span>
+                      <input max="99" min="72" onChange={(event) => updateSubtitleAppearance({ linePosition: Number(event.target.value) })} type="range" value={subtitleAppearance.linePosition} />
+                    </label>
+                    <label>
+                      <span>{texts.subtitleWidth}: {subtitleAppearance.width}%</span>
+                      <input max="100" min="30" onChange={(event) => updateSubtitleAppearance({ width: Number(event.target.value) })} type="range" value={subtitleAppearance.width} />
+                    </label>
+                    <label>
+                      <span>{texts.subtitleTextColor}</span>
+                      <input disabled={subtitleAppearance.profile === 'youtube'} onChange={(event) => updateSubtitleAppearance({ textColor: event.target.value })} type="color" value={subtitleAppearance.textColor} />
+                    </label>
+                    <label>
+                      <span>{texts.subtitleBackgroundColor}</span>
+                      <input disabled={subtitleAppearance.profile === 'youtube'} onChange={(event) => updateSubtitleAppearance({ backgroundColor: event.target.value })} type="color" value={subtitleAppearance.backgroundColor} />
+                    </label>
+                    <label>
+                      <span>{texts.subtitleBackgroundOpacity}: {subtitleAppearance.backgroundOpacity.toFixed(2)}</span>
+                      <input disabled={subtitleAppearance.profile === 'youtube'} max="1" min="0" onChange={(event) => updateSubtitleAppearance({ backgroundOpacity: Number(event.target.value) })} step="0.05" type="range" value={subtitleAppearance.backgroundOpacity} />
+                    </label>
+                    <label>
+                      <span>{texts.subtitleShadow}</span>
+                      <select disabled={subtitleAppearance.profile === 'youtube'} value={subtitleAppearance.shadow} onChange={(event) => updateSubtitleAppearance({ shadow: event.target.value as SubtitleShadow })}>
+                        <option value="none">{texts.subtitleShadowNone}</option>
+                        <option value="soft">{texts.subtitleShadowSoft}</option>
+                        <option value="strong">{texts.subtitleShadowStrong}</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="choice-row subtitle-emphasis-row">
+                    <span>{texts.subtitleEmphasis}</span>
+                    <label className="choice-pill">
+                      <input checked={subtitleAppearance.bold} onChange={(event) => updateSubtitleAppearance({ bold: event.target.checked })} type="checkbox" />
+                      <span>{texts.subtitleBold}</span>
+                    </label>
+                    <label className="choice-pill">
+                      <input checked={subtitleAppearance.italic} onChange={(event) => updateSubtitleAppearance({ italic: event.target.checked })} type="checkbox" />
+                      <span>{texts.subtitleItalic}</span>
+                    </label>
+                    <label className="choice-pill">
+                      <input checked={subtitleAppearance.underline} onChange={(event) => updateSubtitleAppearance({ underline: event.target.checked })} type="checkbox" />
+                      <span>{texts.subtitleUnderline}</span>
+                    </label>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <footer className="app-footer">
         <p>
@@ -1901,9 +2255,108 @@ function formatElapsed(totalSeconds: number): string {
   return [hours, minutes, seconds].map((value) => String(value).padStart(2, '0')).join(':')
 }
 
-function makeSubtitleTrackUrl(segments: Segment[]): string {
-  const blob = new Blob([toVtt(segments)], { type: 'text/vtt;charset=utf-8' })
+function makeSubtitleTrackUrl(segments: Segment[], appearance: SubtitleAppearance): string {
+  const blob = new Blob([toVtt(segments, appearance)], { type: 'text/vtt;charset=utf-8' })
   return URL.createObjectURL(blob)
+}
+
+function normalizeSubtitleAppearance(appearance: SubtitleAppearance): SubtitleAppearance {
+  const normalized = {
+    ...appearance,
+    linePosition: clamp(appearance.linePosition, 72, 99),
+  }
+
+  if (appearance.profile === 'youtube') {
+    return {
+      ...normalized,
+      backgroundColor: '#000000',
+      backgroundOpacity: 0.75,
+      shadow: 'none',
+      textColor: '#ffffff',
+    }
+  }
+
+  return normalized
+}
+
+function buildSubtitlePreviewStyle(appearance: SubtitleAppearance): CSSProperties {
+  const normalized = normalizeSubtitleAppearance(appearance)
+  const textAlign = normalized.alignment
+  const marginLeft = normalized.alignment === 'left' ? '0' : normalized.alignment === 'center' ? 'auto' : 'auto'
+  const marginRight = normalized.alignment === 'right' ? '0' : normalized.alignment === 'center' ? 'auto' : 'auto'
+  const cueBoxShadow = normalized.shadow === 'none'
+    ? 'none'
+    : normalized.shadow === 'strong'
+      ? '0 12px 28px rgba(0, 0, 0, 0.45)'
+      : '0 8px 20px rgba(0, 0, 0, 0.28)'
+  const textShadow = normalized.shadow === 'none'
+    ? 'none'
+    : normalized.shadow === 'strong'
+      ? '0 2px 8px rgba(0, 0, 0, 0.9)'
+      : '0 1px 4px rgba(0, 0, 0, 0.75)'
+
+  return {
+    alignItems: 'flex-end',
+    justifyContent: normalized.alignment === 'left' ? 'flex-start' : normalized.alignment === 'right' ? 'flex-end' : 'center',
+    paddingBottom: `${100 - normalized.linePosition}%`,
+    ['--subtitle-width' as string]: `${normalized.width}%`,
+    ['--subtitle-text-color' as string]: normalized.textColor,
+    ['--subtitle-bg-color' as string]: toRgba(normalized.backgroundColor, normalized.backgroundOpacity),
+    ['--subtitle-font-size' as string]: `${Math.round(normalized.fontSize)}%`,
+    ['--subtitle-text-shadow' as string]: textShadow,
+    ['--subtitle-cue-shadow' as string]: cueBoxShadow,
+    ['--subtitle-text-align' as string]: textAlign,
+    ['--subtitle-margin-left' as string]: marginLeft,
+    ['--subtitle-margin-right' as string]: marginRight,
+  }
+}
+
+function buildSubtitleCueStyle(appearance: SubtitleAppearance): CSSProperties {
+  const normalized = normalizeSubtitleAppearance(appearance)
+
+  return {
+    fontWeight: normalized.bold ? 700 : 500,
+  }
+}
+
+function renderStyledSubtitleText(text: string, appearance: SubtitleAppearance) {
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        fontStyle: appearance.italic ? 'italic' : 'normal',
+        fontWeight: appearance.bold ? 800 : 500,
+        textDecoration: appearance.underline ? 'underline' : 'none',
+        transform: appearance.italic ? 'skewX(-8deg)' : 'none',
+      }}
+    >
+      {text}
+    </span>
+  )
+}
+
+function findSegmentAtTime(segments: Segment[], currentTime: number): Segment | null {
+  return segments.find((segment, index) => {
+    const nextStart = segments[index + 1]?.start
+    if (currentTime < segment.start) {
+      return false
+    }
+
+    if (typeof nextStart === 'number') {
+      return currentTime < nextStart
+    }
+
+    return currentTime <= segment.end + 0.1
+  }) ?? null
+}
+
+function toRgba(hexColor: string, alpha: number): string {
+  const match = hexColor.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i)
+  if (!match) {
+    return `rgba(0, 0, 0, ${alpha})`
+  }
+
+  return `rgba(${parseInt(match[1], 16)}, ${parseInt(match[2], 16)}, ${parseInt(match[3], 16)}, ${clamp(alpha, 0, 1)})`
 }
 
 function mapStatusToProgress(status: string): number {
