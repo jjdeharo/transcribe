@@ -151,6 +151,7 @@ const UI_STRINGS = {
     recover: 'Recuperar',
     delete: 'Borrar',
     file: 'Archivo',
+    playbackSpeed: 'Velocidad',
     video: 'Vídeo',
     audio: 'Audio',
     noFile: 'Sin archivo',
@@ -252,6 +253,7 @@ const UI_STRINGS = {
     recover: 'Restore',
     delete: 'Delete',
     file: 'File',
+    playbackSpeed: 'Speed',
     video: 'Video',
     audio: 'Audio',
     noFile: 'No file',
@@ -353,6 +355,7 @@ const UI_STRINGS = {
     recover: 'Recupera',
     delete: 'Esborra',
     file: 'Fitxer',
+    playbackSpeed: 'Velocitat',
     video: 'Vídeo',
     audio: 'Àudio',
     noFile: 'Cap fitxer',
@@ -454,6 +457,7 @@ const UI_STRINGS = {
     recover: 'Recuperar',
     delete: 'Borrar',
     file: 'Ficheiro',
+    playbackSpeed: 'Velocidade',
     video: 'Vídeo',
     audio: 'Audio',
     noFile: 'Sen ficheiro',
@@ -555,6 +559,7 @@ const UI_STRINGS = {
     recover: 'Berreskuratu',
     delete: 'Ezabatu',
     file: 'Fitxategia',
+    playbackSpeed: 'Abiadura',
     video: 'Bideoa',
     audio: 'Audioa',
     noFile: 'Fitxategirik ez',
@@ -650,6 +655,9 @@ function App() {
   const [savedSessionsLimit, setSavedSessionsLimit] = useState<number>(DEFAULT_PERSISTED_SESSIONS_LIMIT)
   const [isSavedSessionsExpanded, setIsSavedSessionsExpanded] = useState(false)
   const [uiLanguageSetting, setUiLanguageSetting] = useState<UiLanguageSetting>('auto')
+  const [playbackRate, setPlaybackRate] = useState<number>(1)
+  const [mediaElement, setMediaElement] = useState<HTMLMediaElement | null>(null)
+  const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null)
 
   const workerRef = useRef<Worker | null>(null)
   const mediaRef = useRef<HTMLMediaElement | null>(null)
@@ -672,6 +680,7 @@ function App() {
   const savedSessionsSize = useMemo(() => estimatePersistedSessionsSize(savedSessions, savedSessionsLimit), [savedSessions, savedSessionsLimit])
   const uiLanguage = useMemo(() => resolveUiLanguage(uiLanguageSetting), [uiLanguageSetting])
   const texts = UI_STRINGS[uiLanguage]
+  const playbackRateOptions = [0.75, 1, 1.25, 1.5, 1.75, 2]
   const visibleStatus = downloadProgress === null && status === 'Descargando el modelo de transcripción…'
     ? 'Cargando modelo…'
     : status
@@ -680,6 +689,26 @@ function App() {
     setCanUndo(undoStackRef.current.length > 0)
     setCanRedo(redoStackRef.current.length > 0)
   }, [])
+
+  const attachVideoElement = useCallback((element: HTMLVideoElement | null) => {
+    videoRef.current = element
+    mediaRef.current = element
+    setVideoElement(element)
+    setMediaElement(element)
+    if (element) {
+      element.playbackRate = playbackRate
+    }
+  }, [playbackRate])
+
+  const attachAudioElement = useCallback((element: HTMLAudioElement | null) => {
+    mediaRef.current = element
+    videoRef.current = null
+    setMediaElement(element)
+    setVideoElement(null)
+    if (element) {
+      element.playbackRate = playbackRate
+    }
+  }, [playbackRate])
 
   const restoreSavedSession = useCallback((session: PersistedSession, options?: { statusMessage?: string }) => {
     restoredFileInfoRef.current = session.fileInfo
@@ -720,6 +749,12 @@ function App() {
       workerRef.current = null
     }
   }, [])
+
+  useEffect(() => {
+    if (mediaElement) {
+      mediaElement.playbackRate = playbackRate
+    }
+  }, [mediaElement, mediaUrl, playbackRate])
 
   useEffect(() => {
     const persistedLimit = loadPersistedSessionsLimit()
@@ -777,7 +812,6 @@ function App() {
   }, [segments, selectedFile])
 
   useEffect(() => {
-    const videoElement = videoRef.current
     if (!videoElement || !subtitleTrackUrl) {
       return
     }
@@ -799,7 +833,7 @@ function App() {
     return () => {
       window.clearTimeout(timer)
     }
-  }, [subtitleTrackUrl, subtitleTrackVersion])
+  }, [subtitleTrackUrl, subtitleTrackVersion, videoElement])
 
   useEffect(() => {
     if (!isTranscribing || startedAtRef.current === null) {
@@ -818,7 +852,6 @@ function App() {
   }, [isTranscribing])
 
   useEffect(() => {
-    const mediaElement = mediaRef.current
     if (!mediaElement || segments.length === 0) {
       setActiveSegmentId(null)
       return
@@ -853,7 +886,7 @@ function App() {
       mediaElement.removeEventListener('seeked', syncActiveSegment)
       mediaElement.removeEventListener('loadedmetadata', syncActiveSegment)
     }
-  }, [segments, mediaUrl])
+  }, [segments, mediaElement, mediaUrl])
 
   useEffect(() => {
     if (activeSegmentId === null) {
@@ -1520,16 +1553,25 @@ function App() {
         <article className={`panel preview-panel ${hasStickyMediaPreview ? 'preview-panel-sticky' : ''}`}>
           <div className="panel-heading">
             <h2>{texts.file}</h2>
-            <span className="pill">{selectedFile ? (isVideoFile(selectedFile) ? texts.video : texts.audio) : texts.noFile}</span>
+            <div className="preview-tools">
+              <span className="pill">{selectedFile ? (isVideoFile(selectedFile) ? texts.video : texts.audio) : texts.noFile}</span>
+              <label className="playback-rate-control">
+                <span>{texts.playbackSpeed}</span>
+                <select value={String(playbackRate)} onChange={(event) => setPlaybackRate(Number(event.target.value))}>
+                  {playbackRateOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}x
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
 
           {mediaUrl ? (
             isVideoFile(selectedFile!) ? (
               <video
-                ref={(element) => {
-                  videoRef.current = element
-                  mediaRef.current = element
-                }}
+                ref={attachVideoElement}
                 className="media-player"
                 controls
                 src={mediaUrl}
@@ -1547,10 +1589,7 @@ function App() {
               </video>
             ) : (
               <audio
-                ref={(element) => {
-                  mediaRef.current = element
-                  videoRef.current = null
-                }}
+                ref={attachAudioElement}
                 className="media-player"
                 controls
                 src={mediaUrl}
