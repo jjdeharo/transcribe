@@ -135,6 +135,8 @@ const UI_STRINGS = {
     cancel: 'Cancelar',
     status: 'Estado',
     modelDownload: 'Descarga del modelo',
+    saveAs: 'Guardar',
+    copyAs: 'Copiar',
     currentTime: 'Tiempo actual',
     lastRun: 'Última ejecución',
     noData: 'sin datos',
@@ -155,6 +157,7 @@ const UI_STRINGS = {
     transcriptionTrack: 'Transcripción',
     noMediaLoaded: 'Todavía no has cargado ningún archivo.',
     extractedText: 'Texto extraído',
+    extractedTextHint: 'Si quieres corregir subtítulos o tiempos, edita los fragmentos temporizados. Este cuadro sirve sobre todo para revisar, copiar o exportar.',
     fragmentsTimed: 'Fragmentos temporizados',
     noBlocks: 'Aún no hay bloques',
     blocksCount: '{count} bloques',
@@ -197,6 +200,8 @@ const UI_STRINGS = {
     savedSessionNoFile: 'Transcripción sin archivo asociado',
     copied: 'Texto copiado al portapapeles.',
     copyFailed: 'No se pudo copiar el texto al portapapeles.',
+    copiedFormat: '{format} copiado al portapapeles.',
+    copyFailedFormat: 'No se pudo copiar {format} al portapapeles.',
     sessionRestored: 'Sesión restaurada. Vuelve a cargar el archivo si quieres previsualizar o sincronizar con el vídeo.',
     localTranscriptionRestored: 'Transcripción restaurada desde el guardado local.',
     recoveredForCurrentFile: 'Archivo cargado. Transcripción recuperada del guardado local y sincronizada con el medio.',
@@ -231,6 +236,8 @@ const UI_STRINGS = {
     cancel: 'Cancel',
     status: 'Status',
     modelDownload: 'Model download',
+    saveAs: 'Save',
+    copyAs: 'Copy',
     currentTime: 'Current time',
     lastRun: 'Last run',
     noData: 'no data',
@@ -251,6 +258,7 @@ const UI_STRINGS = {
     transcriptionTrack: 'Transcription',
     noMediaLoaded: 'You have not loaded any file yet.',
     extractedText: 'Extracted text',
+    extractedTextHint: 'If you want to correct subtitles or timings, edit the timed segments. This box is mainly for reviewing, copying, or exporting.',
     fragmentsTimed: 'Timed segments',
     noBlocks: 'No blocks yet',
     blocksCount: '{count} blocks',
@@ -293,6 +301,8 @@ const UI_STRINGS = {
     savedSessionNoFile: 'Transcription without associated file',
     copied: 'Text copied to clipboard.',
     copyFailed: 'Could not copy text to clipboard.',
+    copiedFormat: '{format} copied to clipboard.',
+    copyFailedFormat: 'Could not copy {format} to clipboard.',
     sessionRestored: 'Session restored. Reload the file if you want preview or media sync.',
     localTranscriptionRestored: 'Transcription restored from local storage.',
     recoveredForCurrentFile: 'File loaded. Transcription restored from local storage and synced with the media.',
@@ -327,6 +337,8 @@ const UI_STRINGS = {
     cancel: 'Cancel·la',
     status: 'Estat',
     modelDownload: 'Descàrrega del model',
+    saveAs: 'Desa',
+    copyAs: 'Copia',
     currentTime: 'Temps actual',
     lastRun: 'Darrera execució',
     noData: 'sense dades',
@@ -347,6 +359,7 @@ const UI_STRINGS = {
     transcriptionTrack: 'Transcripció',
     noMediaLoaded: 'Encara no has carregat cap fitxer.',
     extractedText: 'Text extret',
+    extractedTextHint: 'Si vols corregir subtítols o temps, edita els fragments temporitzats. Aquest quadre serveix sobretot per revisar, copiar o exportar.',
     fragmentsTimed: 'Fragments temporitzats',
     noBlocks: 'Encara no hi ha blocs',
     blocksCount: '{count} blocs',
@@ -389,6 +402,8 @@ const UI_STRINGS = {
     savedSessionNoFile: 'Transcripció sense fitxer associat',
     copied: 'Text copiat al porta-retalls.',
     copyFailed: 'No s\'ha pogut copiar el text al porta-retalls.',
+    copiedFormat: '{format} copiat al porta-retalls.',
+    copyFailedFormat: 'No s\'ha pogut copiar {format} al porta-retalls.',
     sessionRestored: 'Sessió restaurada. Torna a carregar el fitxer si vols previsualització o sincronització amb el vídeo.',
     localTranscriptionRestored: 'Transcripció restaurada des del desament local.',
     recoveredForCurrentFile: 'Fitxer carregat. Transcripció recuperada del desament local i sincronitzada amb el mitjà.',
@@ -423,6 +438,8 @@ const UI_STRINGS = {
     cancel: 'Cancelar',
     status: 'Estado',
     modelDownload: 'Descarga do modelo',
+    saveAs: 'Gardar',
+    copyAs: 'Copiar',
     currentTime: 'Tempo actual',
     lastRun: 'Última execución',
     noData: 'sen datos',
@@ -443,6 +460,7 @@ const UI_STRINGS = {
     transcriptionTrack: 'Transcrición',
     noMediaLoaded: 'Aínda non cargaches ningún ficheiro.',
     extractedText: 'Texto extraído',
+    extractedTextHint: 'Se queres corrixir subtítulos ou tempos, edita os fragmentos temporizados. Este cadro serve sobre todo para revisar, copiar ou exportar.',
     fragmentsTimed: 'Fragmentos temporizados',
     noBlocks: 'Aínda non hai bloques',
     blocksCount: '{count} bloques',
@@ -485,6 +503,8 @@ const UI_STRINGS = {
     savedSessionNoFile: 'Transcrición sen ficheiro asociado',
     copied: 'Texto copiado ao portapapeis.',
     copyFailed: 'Non se puido copiar o texto ao portapapeis.',
+    copiedFormat: '{format} copiado ao portapapeis.',
+    copyFailedFormat: 'Non se puido copiar {format} ao portapapeis.',
     sessionRestored: 'Sesión restaurada. Volve cargar o ficheiro se queres previsualización ou sincronización co vídeo.',
     localTranscriptionRestored: 'Transcrición restaurada desde o gardado local.',
     recoveredForCurrentFile: 'Ficheiro cargado. Transcrición recuperada do gardado local e sincronizada co medio.',
@@ -519,6 +539,8 @@ const UI_STRINGS = {
     cancel: 'Utzi',
     status: 'Egoera',
     modelDownload: 'Ereduaren deskarga',
+    saveAs: 'Gorde',
+    copyAs: 'Kopiatu',
     currentTime: 'Uneko denbora',
     lastRun: 'Azken exekuzioa',
     noData: 'daturik ez',
@@ -539,6 +561,7 @@ const UI_STRINGS = {
     transcriptionTrack: 'Transkripzioa',
     noMediaLoaded: 'Oraindik ez duzu fitxategirik kargatu.',
     extractedText: 'Ateratako testua',
+    extractedTextHint: 'Azpitituluak edo denborak zuzendu nahi badituzu, editatu denboraz markatutako zatiak. Koadro hau batez ere berrikusi, kopiatu edo esportatzeko da.',
     fragmentsTimed: 'Denboraz markatutako zatiak',
     noBlocks: 'Oraindik ez dago bloketik',
     blocksCount: '{count} bloke',
@@ -581,6 +604,8 @@ const UI_STRINGS = {
     savedSessionNoFile: 'Lotutako fitxategirik gabeko transkripzioa',
     copied: 'Testua arbelean kopiatu da.',
     copyFailed: 'Ezin izan da testua arbelean kopiatu.',
+    copiedFormat: '{format} arbelean kopiatu da.',
+    copyFailedFormat: 'Ezin izan da {format} arbelean kopiatu.',
     sessionRestored: 'Saioa leheneratu da. Kargatu berriro fitxategia aurrebista edo bideoarekin sinkronizazioa nahi baduzu.',
     localTranscriptionRestored: 'Transkripzioa tokiko gordailutik leheneratu da.',
     recoveredForCurrentFile: 'Fitxategia kargatu da. Transkripzioa tokiko gordailutik berreskuratu eta multimediarekin sinkronizatu da.',
@@ -902,6 +927,18 @@ function App() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   })
+
+  useEffect(() => {
+    if (!copyMessage) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setCopyMessage('')
+    }, 2400)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [copyMessage])
 
   const fileSummary = useMemo(() => {
     if (!selectedFile) {
@@ -1291,13 +1328,17 @@ function App() {
     downloadTextFile(`${outputBaseName}.txt`, toTxt(segments, mergedPlainText), 'text/plain;charset=utf-8')
   }
 
-  const handleCopyText = async () => {
+  const handleCopy = async (format: 'TXT' | 'SRT' | 'VTT', content: string) => {
     try {
-      await navigator.clipboard.writeText(toTxt(segments, mergedPlainText))
-      setCopyMessage(texts.copied)
+      await navigator.clipboard.writeText(content)
+      setCopyMessage(formatTemplate(texts.copiedFormat, { format }))
     } catch {
-      setCopyMessage(texts.copyFailed)
+      setCopyMessage(formatTemplate(texts.copyFailedFormat, { format }))
     }
+  }
+
+  const handleCopyText = async () => {
+    await handleCopy('TXT', toTxt(segments, mergedPlainText))
   }
 
   const handleExportSrt = () => {
@@ -1306,6 +1347,14 @@ function App() {
 
   const handleExportVtt = () => {
     downloadTextFile(`${outputBaseName}.vtt`, toVtt(segments), 'text/vtt;charset=utf-8')
+  }
+
+  const handleCopySrt = async () => {
+    await handleCopy('SRT', toSrt(segments))
+  }
+
+  const handleCopyVtt = async () => {
+    await handleCopy('VTT', toVtt(segments))
   }
 
       return (
@@ -1517,20 +1566,43 @@ function App() {
             <div className="panel-heading">
               <h2>{texts.extractedText}</h2>
               <div className="export-actions">
-                <button disabled={!canExport} onClick={handleExportTxt}>
-                  TXT
-                </button>
-                <button disabled={!canExport} onClick={handleCopyText}>
-                  Copiar
-                </button>
-                <button disabled={!canExport} onClick={handleExportSrt}>
-                  SRT
-                </button>
-                <button disabled={!canExport} onClick={handleExportVtt}>
-                  VTT
-                </button>
+                <div className="export-group">
+                  <span className="export-group-title">{texts.saveAs}</span>
+                  <div className="export-group-actions">
+                    <button disabled={!canExport} onClick={handleExportTxt} type="button">
+                      <span aria-hidden="true">↓</span> TXT
+                    </button>
+                    <button disabled={!canExport} onClick={handleExportSrt} type="button">
+                      <span aria-hidden="true">↓</span> SRT
+                    </button>
+                    <button disabled={!canExport} onClick={handleExportVtt} type="button">
+                      <span aria-hidden="true">↓</span> VTT
+                    </button>
+                  </div>
+                </div>
+                <div aria-hidden="true" className="export-divider" />
+                <div className="export-group">
+                  <span className="export-group-title">{texts.copyAs}</span>
+                  <div className="export-group-actions">
+                    <button disabled={!canExport} onClick={handleCopyText} type="button">
+                      <span aria-hidden="true">⧉</span> TXT
+                    </button>
+                    <button disabled={!canExport} onClick={handleCopySrt} type="button">
+                      <span aria-hidden="true">⧉</span> SRT
+                    </button>
+                    <button disabled={!canExport} onClick={handleCopyVtt} type="button">
+                      <span aria-hidden="true">⧉</span> VTT
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
+            {copyMessage ? (
+              <div className="status-box copy-feedback" role="status" aria-live="polite">
+                <p>{copyMessage}</p>
+              </div>
+            ) : null}
+            <p className="small-note output-hint">{texts.extractedTextHint}</p>
 
             <textarea
               className="plain-text"
@@ -1545,7 +1617,6 @@ function App() {
               }
               placeholder={texts.plainTextPlaceholder}
             />
-            {copyMessage ? <p className="small-note">{copyMessage}</p> : null}
           </article>
 
           <section className="panel transcript-panel">
