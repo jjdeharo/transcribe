@@ -211,6 +211,12 @@
   margin-bottom: 14px;
 }
 
+.status-cancel-button {
+  min-height: 32px;
+  padding: 0 14px;
+  align-self: center;
+}
+
 .status-panel p + .progress-block {
   margin-top: 12px;
 }
