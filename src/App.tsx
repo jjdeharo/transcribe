@@ -1789,7 +1789,7 @@ function App() {
                   src={mediaUrl}
                 />
                 <div aria-live="polite" className="subtitle-overlay" style={subtitlePreviewStyle}>
-                  <div className="subtitle-overlay-cue" style={subtitleCueStyle}>{renderStyledSubtitleText(subtitlePreviewText, subtitleAppearance)}</div>
+                  <div className="subtitle-overlay-cue" style={subtitleCueStyle}>{subtitlePreviewText}</div>
                 </div>
               </div>
             ) : (
@@ -1999,7 +1999,7 @@ function App() {
                       </div>
                     )}
                     <div className="subtitle-preview-overlay" style={subtitlePreviewStyle}>
-                      {subtitlePreviewText ? <div className="subtitle-overlay-cue" style={subtitleCueStyle}>{renderStyledSubtitleText(subtitlePreviewText, subtitleAppearance)}</div> : null}
+                      {subtitlePreviewText ? <div className="subtitle-overlay-cue" style={subtitleCueStyle}>{subtitlePreviewText}</div> : null}
                     </div>
                   </div>
                 </div>
@@ -2315,24 +2315,11 @@ function buildSubtitleCueStyle(appearance: SubtitleAppearance): CSSProperties {
   const normalized = normalizeSubtitleAppearance(appearance)
 
   return {
-    fontWeight: normalized.bold ? 700 : 500,
+    fontStyle: normalized.italic ? 'italic' : 'normal',
+    fontSynthesis: normalized.bold || normalized.italic ? 'weight style' : 'none',
+    fontWeight: normalized.bold ? 700 : 400,
+    textDecoration: normalized.underline ? 'underline' : 'none',
   }
-}
-
-function renderStyledSubtitleText(text: string, appearance: SubtitleAppearance) {
-  return (
-    <span
-      style={{
-        display: 'inline-block',
-        fontStyle: appearance.italic ? 'italic' : 'normal',
-        fontWeight: appearance.bold ? 800 : 500,
-        textDecoration: appearance.underline ? 'underline' : 'none',
-        transform: appearance.italic ? 'skewX(-8deg)' : 'none',
-      }}
-    >
-      {text}
-    </span>
-  )
 }
 
 function findSegmentAtTime(segments: Segment[], currentTime: number): Segment | null {
