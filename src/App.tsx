@@ -45,7 +45,7 @@ type WorkerRequest = {
 type WorkerMessage =
   | { type: 'status'; payload: string }
   | { type: 'download'; payload: { file?: string; progress?: number; status?: string; loaded?: number; total?: number } }
-  | { type: 'chunkProgress'; payload: { completed: number; total: number } }
+  | { type: 'chunkProgress'; payload: { completed: number; current?: number; total: number } }
   | { type: 'result'; payload: WorkerSuccess }
   | { type: 'error'; payload: string }
 
@@ -870,6 +870,7 @@ function App() {
     () => findSegmentAtTime(segments, subtitlePreviewTime),
     [segments, subtitlePreviewTime],
   )
+  const mediaSubtitleText = activeSegment?.text || ''
   const subtitlePreviewText = hasPreviewVideo
     ? previewSegment?.text || ''
     : activeSegment?.text || segments[0]?.text || texts.subtitlePreviewSample
@@ -1789,7 +1790,7 @@ function App() {
                   src={mediaUrl}
                 />
                 <div aria-live="polite" className="subtitle-overlay" style={subtitlePreviewStyle}>
-                  <div className="subtitle-overlay-cue" style={subtitleCueStyle}>{subtitlePreviewText}</div>
+                  {mediaSubtitleText ? <div className="subtitle-overlay-cue" style={subtitleCueStyle}>{mediaSubtitleText}</div> : null}
                 </div>
               </div>
             ) : (
@@ -2194,9 +2195,9 @@ function createTranscriptionWorker(
     }
 
     if (message.type === 'chunkProgress') {
-      const { completed, total } = message.payload
+      const { completed, current, total } = message.payload
       const ratio = total > 0 ? completed / total : 0
-      setStatus(`Transcribiendo bloque ${completed} de ${total}…`)
+      setStatus(`Transcribiendo bloque ${current ?? completed} de ${total}…`)
       setWorkflowProgress((current) => advanceProgress(current, Math.max(72, Math.min(98, Math.round(72 + ratio * 26)))))
       return
     }
@@ -2356,7 +2357,8 @@ function mapStatusToProgress(status: string): number {
   if (normalized.includes('extrayendo audio')) return 24
   if (normalized.includes('decodificando audio')) return 45
   if (normalized.includes('preparando el modelo')) return 55
-  if (normalized.includes('transcribiendo')) return 78
+  if (normalized.includes('transcribiendo audio')) return 88
+  if (normalized.includes('transcribiendo')) return 82
   if (normalized.includes('procesando audio')) return 82
   if (normalized.includes('completada')) return 100
 

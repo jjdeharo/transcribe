@@ -27,6 +27,12 @@ type PipelineResult = {
   text?: string
 }
 
+type AudioPiece = {
+  audio: Float32Array
+  durationSeconds: number
+  offsetSeconds: number
+}
+
 type WhisperDecodeChunk = {
   stride: [number, number, number]
   tokens: bigint[]
@@ -74,7 +80,9 @@ type WhisperPipeline = {
 }
 
 const SAMPLE_RATE = 16_000
-const CHUNK_SECONDS = 20
+const LANGUAGE_PROBE_SECONDS = 20
+const PIPELINE_CHUNK_SECONDS = 30
+const PIPELINE_STRIDE_SECONDS = 5
 
 env.logLevel = LogLevel.NONE
 
@@ -95,16 +103,13 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     postMessage({ type: 'status', payload: 'Preparando el modelo de transcripción…' })
     const transcriber = await getTranscriber(modelId)
     const resolvedLanguage = language || await detectWhisperLanguage(transcriber, audio)
-
-    const pieces = splitAudio(audio, CHUNK_SECONDS)
-    const total = pieces.length
+    const pieces = splitAudio(audio, PIPELINE_CHUNK_SECONDS, PIPELINE_STRIDE_SECONDS)
     const collectedSegments: Segment[] = []
-    const collectedTexts: string[] = []
 
     for (let index = 0; index < pieces.length; index += 1) {
       const piece = pieces[index]
+      postMessage({ type: 'chunkProgress', payload: { completed: index, current: index + 1, total: pieces.length } })
 
-      postMessage({ type: 'chunkProgress', payload: { completed: index + 1, total } })
       const result = await transcriber(piece.audio, {
         return_timestamps: true,
         task: 'transcribe',
@@ -112,22 +117,17 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       })
 
       const normalized = normalizeChunkSegments(result, piece.offsetSeconds, piece.durationSeconds)
-      if (normalized.length > 0) {
-        collectedSegments.push(...normalized)
-      }
-
-      const chunkText = (result.text ?? normalized.map((segment) => segment.text).join(' ')).trim()
-      if (chunkText) {
-        collectedTexts.push(chunkText)
-      }
+      collectedSegments.push(...keepCenterSegments(normalized, piece, index, pieces.length, duration))
+      postMessage({ type: 'chunkProgress', payload: { completed: index + 1, current: index + 1, total: pieces.length } })
     }
 
-    const finalSegments = reindexSegments(fixSegmentBounds(collectedSegments, duration))
+    const orderedSegments = [...collectedSegments].sort((left, right) => left.start - right.start)
+    const finalSegments = reindexSegments(fixSegmentBounds(orderedSegments, duration))
     postMessage({
       type: 'result',
       payload: {
         segments: finalSegments,
-        text: collectedTexts.join('\n').trim(),
+        text: finalSegments.map((segment) => segment.text).join('\n').trim(),
         detectedLanguage: resolvedLanguage,
       },
     })
@@ -173,7 +173,7 @@ async function detectWhisperLanguage(transcriber: WhisperPipeline, audio: Float3
     return null
   }
 
-  const probeChunk = splitAudio(audio, CHUNK_SECONDS)[0]?.audio
+  const probeChunk = splitAudio(audio, LANGUAGE_PROBE_SECONDS)[0]?.audio
   if (!probeChunk || probeChunk.length === 0) {
     return null
   }
@@ -220,12 +220,18 @@ function extractGeneratedSequence(generated: unknown): number[] {
   return []
 }
 
-function splitAudio(audio: Float32Array, chunkSeconds: number) {
+function splitAudio(audio: Float32Array, chunkSeconds: number, overlapSeconds = 0): AudioPiece[] {
   const samplesPerChunk = SAMPLE_RATE * chunkSeconds
-  const pieces: Array<{ audio: Float32Array; offsetSeconds: number; durationSeconds: number }> = []
+  const overlapSamples = SAMPLE_RATE * overlapSeconds
+  const samplesPerStep = Math.max(1, samplesPerChunk - overlapSamples)
+  const pieces: AudioPiece[] = []
 
-  for (let start = 0; start < audio.length; start += samplesPerChunk) {
+  for (let start = 0; start < audio.length; start += samplesPerStep) {
     const end = Math.min(start + samplesPerChunk, audio.length)
+    if (start > 0 && end - start <= overlapSamples) {
+      break
+    }
+
     const slice = audio.slice(start, end)
     pieces.push({
       audio: slice,
@@ -235,6 +241,31 @@ function splitAudio(audio: Float32Array, chunkSeconds: number) {
   }
 
   return pieces
+}
+
+function keepCenterSegments(
+  segments: Segment[],
+  piece: AudioPiece,
+  pieceIndex: number,
+  totalPieces: number,
+  totalDurationSeconds: number,
+): Segment[] {
+  if (totalPieces <= 1) {
+    return segments
+  }
+
+  const pieceEnd = piece.offsetSeconds + piece.durationSeconds
+  const keepStart = pieceIndex === 0
+    ? piece.offsetSeconds
+    : piece.offsetSeconds + PIPELINE_STRIDE_SECONDS / 2
+  const keepEnd = pieceIndex === totalPieces - 1
+    ? Math.min(pieceEnd, totalDurationSeconds)
+    : pieceEnd - PIPELINE_STRIDE_SECONDS / 2
+
+  return segments.filter((segment) => {
+    const midpoint = (segment.start + segment.end) / 2
+    return midpoint >= keepStart && midpoint < keepEnd
+  })
 }
 
 function normalizeChunkSegments(
